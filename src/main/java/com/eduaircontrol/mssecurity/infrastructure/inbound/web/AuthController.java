@@ -15,6 +15,8 @@ import java.sql.Connection;
 import java.util.UUID;
 import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -35,6 +37,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final DataSource dataSource;
+    private final StringRedisTemplate redis;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
@@ -56,24 +59,40 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestBody(required = false) LogoutRequest request,
-            Authentication authentication) {
+            Authentication authentication, HttpServletRequest httpRequest) {
         UUID userId = UUID.fromString(authentication.getName());
         String refreshToken = request == null ? null : request.refreshToken();
         boolean allDevices = request != null && Boolean.TRUE.equals(request.allDevices());
-        authService.logout(userId, refreshToken, allDevices);
+        String jti = (String) httpRequest.getAttribute("jwtJti");
+        java.time.Instant expiresAt = (java.time.Instant) httpRequest.getAttribute("jwtExp");
+        authService.logout(userId, refreshToken, allDevices, jti, expiresAt);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/health")
     public ResponseEntity<ServiceHealthResponse> health() {
+        String redisStatus = redisStatus();
         try (Connection connection = dataSource.getConnection()) {
             if (connection.isValid(2)) {
-                return ResponseEntity.ok(ServiceHealthResponse.healthy());
+                return ResponseEntity.ok(ServiceHealthResponse.healthy(redisStatus));
             }
         } catch (Exception e) {
             // database down — handled below
         }
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ServiceHealthResponse.databaseDown());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ServiceHealthResponse.databaseDown(redisStatus));
+    }
+
+    private String redisStatus() {
+        try {
+            redis.execute((RedisCallback<Void>) connection -> {
+                connection.ping();
+                return null;
+            });
+            return "connected";
+        } catch (Exception e) {
+            return "disconnected";
+        }
     }
 
     private String userAgent(HttpServletRequest request) {

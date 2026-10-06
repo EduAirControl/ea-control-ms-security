@@ -7,6 +7,8 @@ Servicio de autenticación y autorización de EduAirControl (dominio **seguridad
 - JWT **RS256** con claves RSA y publicación **JWKS** (`/api/v1/auth/jwks`); el resto de
   servicios y el gateway validan sin llamar a este servicio (ADR-006)
 - Refresh tokens **stateful** (UUID, hash SHA-256, rotación de un solo uso)
+- **Lista negra en Redis** (`blacklist:{jti}`) al hacer logout: el gateway la consulta en
+  solo lectura para invalidar el access token antes de su expiración
 - Bloqueo de cuenta por intentos fallidos (5 intentos / 15 min) en columnas PostgreSQL
 - Roles `ADMIN`, `USER`, `VIEWER` (sembrados por `RoleBootstrap`)
 - Puerto **8081**, Swagger UI en `/swagger-ui.html`
@@ -19,7 +21,7 @@ Servicio de autenticación y autorización de EduAirControl (dominio **seguridad
 | POST | `/api/v1/auth/register` | público | crea cuenta, asigna rol `USER`, devuelve tokens |
 | POST | `/api/v1/auth/login` | público | 401 credenciales inválidas, 423 cuenta bloqueada |
 | POST | `/api/v1/auth/refresh` | público | rota el refresh token; el anterior queda revocado |
-| POST | `/api/v1/auth/logout` | Bearer | revoca el refresh token (`allDevices` opcional) |
+| POST | `/api/v1/auth/logout` | Bearer | revoca el refresh token y añade el `jti` del access token a la lista negra Redis |
 | GET | `/api/v1/auth/jwks` | público | clave pública RSA (JWKS) para validar access tokens |
 
 El access token es un JWT RS256 de 1 h con `sub`, `email`, `username`, `roles` y
@@ -28,7 +30,7 @@ El access token es un JWT RS256 de 1 h con `sub`, `email`, `username`, `roles` y
 ## Ejecutar
 
 ```bash
-# local (necesita PostgreSQL con la BD eduaircontrol_security)
+# local (necesita PostgreSQL con la BD eduaircontrol_security y Redis)
 POSTGRES_USER=security_user POSTGRES_PASSWORD=security_pass ./mvnw spring-boot:run
 
 # o stack completo
@@ -41,5 +43,5 @@ producción se sustituyen por variables de entorno (`SECURITY_RSA_*_KEY_PATH`).
 ## Pruebas
 
 ```bash
-./mvnw verify        # 32 tests: unit + controllers sobre H2
+./mvnw verify        # 35 tests: unit + controllers sobre H2
 ```

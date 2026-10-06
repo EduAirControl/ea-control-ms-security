@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.eduaircontrol.mssecurity.application.port.RefreshTokenRepository;
 import com.eduaircontrol.mssecurity.application.port.RoleRepository;
+import com.eduaircontrol.mssecurity.application.port.TokenBlacklist;
 import com.eduaircontrol.mssecurity.application.port.UserRepository;
 import com.eduaircontrol.mssecurity.application.port.UserRoleRepository;
 import com.eduaircontrol.mssecurity.domain.exception.AccountLockedException;
@@ -42,6 +43,7 @@ class AuthServiceTest {
     private UserRoleRepository userRoleRepository;
     private RefreshTokenRepository refreshTokenRepository;
     private PasswordEncoder passwordEncoder;
+    private TokenBlacklist tokenBlacklist;
     private AuthService authService;
 
     @BeforeEach
@@ -51,9 +53,11 @@ class AuthServiceTest {
         userRoleRepository = mock(UserRoleRepository.class);
         refreshTokenRepository = mock(RefreshTokenRepository.class);
         passwordEncoder = new BCryptPasswordEncoder(4);
+        tokenBlacklist = mock(TokenBlacklist.class);
         JwtService jwtService = new JwtService("keys/dev-private.pem", "keys/dev-public.pem", 3600);
         authService = new AuthService(userRepository, roleRepository, userRoleRepository,
-                refreshTokenRepository, jwtService, passwordEncoder, Clock.fixed(NOW, ZoneOffset.UTC));
+                refreshTokenRepository, jwtService, passwordEncoder, Clock.fixed(NOW, ZoneOffset.UTC),
+                tokenBlacklist);
         ReflectionTestUtils.setField(authService, "lockoutMaxAttempts", 5);
         ReflectionTestUtils.setField(authService, "lockoutDurationMinutes", 15);
         ReflectionTestUtils.setField(authService, "refreshTtlDays", 7);
@@ -195,10 +199,11 @@ class AuthServiceTest {
         active.setExpiresAt(NOW.plusSeconds(3600));
         when(refreshTokenRepository.findActiveByUserId(userId)).thenReturn(List.of(active));
 
-        authService.logout(userId, null, true);
+        authService.logout(userId, null, true, "jti-1", NOW.plusSeconds(3600));
 
         assertThat(active.getRevokedAt()).isEqualTo(NOW);
         verify(refreshTokenRepository).save(active);
+        verify(tokenBlacklist).blacklist("jti-1", NOW.plusSeconds(3600));
     }
 
     private User activeUser(String passwordHash) {

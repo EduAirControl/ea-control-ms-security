@@ -69,8 +69,11 @@ class JwtServiceTest {
     void tamperedTokenIsRejected() {
         JwtService jwt = service(3600);
         String token = jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "a", List.of());
-        String tampered = token.substring(0, token.length() - 1)
-                + (token.endsWith("A") ? "B" : "A");
+        int signatureStart = token.lastIndexOf('.') + 1;
+        char original = token.charAt(signatureStart);
+        String tampered = token.substring(0, signatureStart)
+                + (original == 'A' ? 'B' : 'A')
+                + token.substring(signatureStart + 1);
 
         assertThatThrownBy(() -> jwt.parse(tampered)).isInstanceOf(JwtException.class);
     }

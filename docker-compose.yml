@@ -10,9 +10,20 @@ services:
       POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-eduaircontrol_security}
       POSTGRES_USER: ${POSTGRES_USER:-security_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-security_pass}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+
+  redis:
+    image: redis:7
+    container_name: ms-security-redis
+    ports:
+      - "6379:6379"
     restart: always
 
   postgres:
