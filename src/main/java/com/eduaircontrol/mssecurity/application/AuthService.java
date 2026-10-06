@@ -2,6 +2,7 @@ package com.eduaircontrol.mssecurity.application;
 
 import com.eduaircontrol.mssecurity.application.port.RefreshTokenRepository;
 import com.eduaircontrol.mssecurity.application.port.RoleRepository;
+import com.eduaircontrol.mssecurity.application.port.TokenBlacklist;
 import com.eduaircontrol.mssecurity.application.port.UserRepository;
 import com.eduaircontrol.mssecurity.application.port.UserRoleRepository;
 import com.eduaircontrol.mssecurity.domain.exception.AccountLockedException;
@@ -44,6 +45,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
+    private final TokenBlacklist tokenBlacklist;
 
     @Value("${app.security.lockout-max-attempts:5}")
     private int lockoutMaxAttempts;
@@ -127,8 +129,10 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(UUID userId, String refreshToken, boolean allDevices) {
+    public void logout(UUID userId, String refreshToken, boolean allDevices,
+            String accessTokenJti, Instant accessTokenExpiresAt) {
         Instant now = clock.instant();
+        tokenBlacklist.blacklist(accessTokenJti, accessTokenExpiresAt);
         if (refreshToken != null) {
             refreshTokenRepository.findByTokenHash(sha256(refreshToken))
                     .filter(found -> found.getUserId().equals(userId) && found.getRevokedAt() == null)

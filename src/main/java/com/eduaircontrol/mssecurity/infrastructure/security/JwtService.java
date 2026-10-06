@@ -55,6 +55,7 @@ public class JwtService {
         Instant now = Instant.now();
         return Jwts.builder()
                 .setSubject(id.toString())
+                .setId(java.util.UUID.randomUUID().toString())
                 .claim("email", email)
                 .claim("username", username)
                 .claim("roles", roles)
