@@ -136,7 +136,11 @@ public class JwtService {
         }
     }
 
-    private static InputStream open(String path) {
+    private static InputStream open(String path) throws IOException {
+        java.nio.file.Path file = java.nio.file.Paths.get(path);
+        if (java.nio.file.Files.isReadable(file)) {
+            return java.nio.file.Files.newInputStream(file);
+        }
         InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
         if (in == null) {
             in = JwtService.class.getClassLoader().getResourceAsStream(path);
