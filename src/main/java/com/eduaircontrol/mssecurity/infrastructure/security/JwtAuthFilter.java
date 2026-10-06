@@ -48,6 +48,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     claims.getSubject(), null, authorities);
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            request.setAttribute("jwtJti", claims.getId());
+            request.setAttribute("jwtExp", claims.getExpiration() == null
+                    ? null
+                    : claims.getExpiration().toInstant());
         } catch (Exception e) {
             log.debug("Invalid token: {}", e.getMessage());
         }
