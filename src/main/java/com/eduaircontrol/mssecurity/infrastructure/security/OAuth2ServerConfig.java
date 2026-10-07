@@ -96,6 +96,7 @@ public class OAuth2ServerConfig {
             }
             String email = context.getPrincipal().getName();
             userRepository.findByEmail(email).ifPresent(user -> {
+                context.getClaims().claim("userId", user.getId().toString());
                 context.getClaims().claim("email", user.getEmail());
                 context.getClaims().claim("roles", userRoleRepository.findByUserId(user.getId()).stream()
                         .map(userRole -> roleRepository.findById(userRole.getRoleId())
