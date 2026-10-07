@@ -31,6 +31,17 @@ Servicio de autenticación y autorización de EduAirControl (dominio **seguridad
 El access token es un JWT RS256 de 1 h con `sub`, `email`, `username`, `roles`,
 `institutionId`, `campusId` y `permissions` (vacío hasta que exista autorización granular).
 
+## OAuth2 / OIDC (ADR-017)
+
+**Spring Authorization Server 7** embebido. Endpoints estándar:
+`/.well-known/openid-configuration`, `/oauth2/jwks`, `/oauth2/authorize`, `/oauth2/token`,
+`/userinfo`. Flujo **Authorization Code + PKCE** (obligatorio); el **api-gateway actúa como
+BFF** y guarda los tokens en cookies httpOnly. Página de login en `/login` (con `companyCode`).
+
+- Clientes sembrados: `ea-control-web` y `ea-control-mobile` (públicos, PKCE).
+- Access token 15 min; refresh 7 días (rotación).
+- Claims del access token: `sub`, `email`, `roles`, `institutionId`, `campusId`, `permissions`.
+
 ## Ejecutar
 
 ```bash
@@ -47,5 +58,5 @@ producción se sustituyen por variables de entorno (`SECURITY_RSA_*_KEY_PATH`).
 ## Pruebas
 
 ```bash
-./mvnw verify        # 44 tests: unit + controllers sobre H2
+./mvnw verify        # 48 tests: unit + controllers + OAuth2 sobre H2
 ```
