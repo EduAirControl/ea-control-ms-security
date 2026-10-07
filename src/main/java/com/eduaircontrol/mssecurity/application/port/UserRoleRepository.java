@@ -9,4 +9,6 @@ public interface UserRoleRepository {
     List<UserRole> findByUserId(UUID userId);
 
     UserRole save(UserRole userRole);
+
+    void delete(UserRole userRole);
 }
