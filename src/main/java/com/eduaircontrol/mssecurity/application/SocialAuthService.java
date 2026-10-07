@@ -60,8 +60,10 @@ public class SocialAuthService {
         }
 
         // 3. Crear usuario nuevo (sin contraseña, sin institucion)
+        // Usar ID deterministico para que reintentos no dupliquen
+        UUID newUserId = UUID.nameUUIDFromBytes(("social:" + provider + ":" + providerUserId).getBytes());
         User user = new User();
-        user.setId(UUID.randomUUID());
+        user.setId(newUserId);
         user.setEmail(email.toLowerCase().trim());
         user.setUsername(email.split("@")[0] + "_" + provider);
         user.setPasswordHash(null);
@@ -70,21 +72,33 @@ public class SocialAuthService {
         user.setInstitutionId(null);
         user.setCreatedAt(Instant.now());
         user.setUpdatedAt(Instant.now());
-        User saved = userRepository.save(user);
+        User saved;
+        try {
+            saved = userRepository.save(user);
+        } catch (RuntimeException e) {
+            // Usuario ya existe (race condition), reintentar lookup
+            final String normalizedEmail = email.toLowerCase().trim();
+            saved = userRepository.findByEmail(normalizedEmail)
+                    .orElseThrow(() -> e);
+            UserIdentity existingIdentity = userIdentityRepository
+                    .findByUserIdAndProvider(saved.getId(), provider).orElse(null);
+            return new SocialResult(saved, existingIdentity, true);
+        }
 
+        final User savedUser = saved;
         // Asignar rol USER por defecto
         roleRepository.findByName("USER").ifPresent(role -> {
             com.eduaircontrol.mssecurity.domain.model.UserRole ur =
                     new com.eduaircontrol.mssecurity.domain.model.UserRole(
-                            saved.getId(), role.getId(), Instant.now());
+                            savedUser.getId(), role.getId(), Instant.now());
             userRoleRepository.save(ur);
         });
 
-        UserIdentity identity = new UserIdentity(saved.getId(), provider, providerUserId,
+        UserIdentity identity = new UserIdentity(savedUser.getId(), provider, providerUserId,
                 email, displayName, avatarUrl);
         userIdentityRepository.save(identity);
 
-        return new SocialResult(saved, identity, false);
+        return new SocialResult(savedUser, identity, false);
     }
 
     /**
