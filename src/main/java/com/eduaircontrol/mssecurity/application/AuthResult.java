@@ -10,5 +10,7 @@ public record AuthResult(
         UUID userId,
         String email,
         String username,
-        List<String> roles) {
+        List<String> roles,
+        UUID institutionId,
+        UUID campusId) {
 }

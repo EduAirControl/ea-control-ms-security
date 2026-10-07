@@ -43,13 +43,15 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest) {
         AuthResult result = authService.register(
-                request.email(), request.password(), request.username(), userAgent(httpRequest));
+                request.email(), request.password(), request.username(), request.companyCode(),
+                request.campusId(), userAgent(httpRequest));
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
     }
 
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        return toResponse(authService.login(request.email(), request.password(), userAgent(httpRequest)));
+        return toResponse(authService.login(request.email(), request.password(), request.companyCode(),
+                userAgent(httpRequest)));
     }
 
     @PostMapping("/refresh")
@@ -105,6 +107,6 @@ public class AuthController {
                 result.refreshToken(),
                 result.expiresIn(),
                 new UserSummary(result.userId(), result.email(), result.username(),
-                        result.roles(), java.util.List.of()));
+                        result.roles(), java.util.List.of(), result.institutionId(), result.campusId()));
     }
 }

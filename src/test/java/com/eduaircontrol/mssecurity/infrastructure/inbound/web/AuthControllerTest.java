@@ -10,8 +10,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.eduaircontrol.mssecurity.application.AuthResult;
 import com.eduaircontrol.mssecurity.application.AuthService;
 import com.eduaircontrol.mssecurity.domain.model.User;
+import com.eduaircontrol.mssecurity.domain.model.Institution;
+import com.eduaircontrol.mssecurity.domain.model.InstitutionStatus;
+import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.InstitutionJpaRepository;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.UserJpaRepository;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -42,6 +46,23 @@ class AuthControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private InstitutionJpaRepository institutionRepository;
+
+    @Autowired
+    private com.eduaircontrol.mssecurity.infrastructure.security.JwtService jwtService;
+
+    @BeforeEach
+    void seedInstitution() {
+        if (institutionRepository.findByCode("SEN-444").isEmpty()) {
+            institutionRepository.save(Institution.builder()
+                    .code("SEN-444")
+                    .name("SENA")
+                    .status(InstitutionStatus.ACTIVE)
+                    .build());
+        }
+    }
+
     @MockitoBean
     private com.eduaircontrol.mssecurity.application.port.TokenBlacklist tokenBlacklist;
 
@@ -59,7 +80,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"register-%s@example.com","password":"%s","username":"new.user"}
+                                {"email":"register-%s@example.com","password":"%s","username":"new.user","companyCode":"SEN-444"}
                                 """.formatted(UUID.randomUUID().toString().substring(0, 8), PASSWORD)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
@@ -78,7 +99,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","username":"other"}
+                                {"email":"%s","password":"%s","username":"other","companyCode":"SEN-444"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("EMAIL_ALREADY_EXISTS"));
@@ -89,7 +110,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"weak-%s@example.com","password":"weak","username":"w"}
+                                {"email":"weak-%s@example.com","password":"weak","username":"w","companyCode":"SEN-444"}
                                 """.formatted(UUID.randomUUID().toString().substring(0, 8))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
@@ -103,7 +124,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s"}
+                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
@@ -118,7 +139,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"Nope12345"}
+                                {"email":"%s","password":"Nope12345","companyCode":"SEN-444"}
                                 """.formatted(email)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("INVALID_CREDENTIALS"));
@@ -133,14 +154,14 @@ class AuthControllerTest {
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
-                                    {"email":"%s","password":"Nope12345"}
+                                    {"email":"%s","password":"Nope12345","companyCode":"SEN-444"}
                                     """.formatted(email)))
                     .andExpect(status().isUnauthorized());
         }
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s"}
+                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isLocked())
                 .andExpect(jsonPath("$.error").value("ACCOUNT_LOCKED"));
@@ -153,7 +174,7 @@ class AuthControllerTest {
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s"}
+                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -184,7 +205,7 @@ class AuthControllerTest {
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s"}
+                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -231,7 +252,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"nobody-%s@example.com","password":"Whatever1"}
+                                {"email":"nobody-%s@example.com","password":"Whatever1","companyCode":"SEN-444"}
                                 """.formatted(UUID.randomUUID().toString().substring(0, 8))))
                 .andExpect(status().isUnauthorized());
     }
@@ -241,7 +262,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"not-an-email","password":"%s","username":"nobody"}
+                                {"email":"not-an-email","password":"%s","username":"nobody","companyCode":"SEN-444"}
                                 """.formatted(PASSWORD)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
@@ -284,11 +305,37 @@ class AuthControllerTest {
         }
     }
 
+    @Test
+    void institutionsRequireSuperAdmin() throws Exception {
+        String userToken = jwtService.generateAccessToken(UUID.randomUUID(), "user@test.com", "user",
+                java.util.List.of("USER"), null, null);
+
+        mockMvc.perform(get("/api/v1/institutions")
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void superAdminCanCreateInstitution() throws Exception {
+        String superToken = jwtService.generateAccessToken(UUID.randomUUID(), "sa@test.com", "sa",
+                java.util.List.of("SUPER_ADMIN"), null, null);
+
+        mockMvc.perform(post("/api/v1/institutions")
+                        .header("Authorization", "Bearer " + superToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"UNI-100","name":"Universidad"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("UNI-100"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
     private com.jayway.jsonpath.DocumentContext login(String email) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s"}
+                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -299,7 +346,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","username":"%s"}
+                                {"email":"%s","password":"%s","username":"%s","companyCode":"SEN-444"}
                                 """.formatted(email, PASSWORD, email.replace("@", "_").replace(".", "_"))))
                 .andExpect(status().isCreated());
     }
