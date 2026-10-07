@@ -32,8 +32,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final ObjectMapper objectMapper;
-    private final CompanyCodeAuthenticationProvider companyCodeAuthenticationProvider;
-    private final CompanyCodeAuthenticationDetailsSource companyCodeAuthenticationDetailsSource;
+    private final CredentialsAuthenticationProvider credentialsAuthenticationProvider;
 
     @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
     private List<String> allowedOrigins;
@@ -64,9 +63,8 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/login")
-                        .authenticationDetailsSource(companyCodeAuthenticationDetailsSource)
                         .permitAll())
-                .authenticationProvider(companyCodeAuthenticationProvider)
+                .authenticationProvider(credentialsAuthenticationProvider)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/health",

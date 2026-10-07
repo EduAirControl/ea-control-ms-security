@@ -77,7 +77,7 @@ class PasswordFlowTest {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s"}
                                 """.formatted(email, password)))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -174,7 +174,7 @@ class PasswordFlowTest {
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"%s\",\"password\":\"%s\",\"companyCode\":\"SEN-444\"}"
+                        .content("{\"email\":\"%s\",\"password\":\"%s\"}"
                                 .formatted(email, PASSWORD)))
                 .andExpect(status().isUnauthorized());
     }
