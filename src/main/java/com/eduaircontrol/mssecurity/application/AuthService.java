@@ -233,6 +233,17 @@ public class AuthService {
         }
     }
 
+    /**
+     * Emite tokens para un usuario autenticado via red social (sin password).
+     * No modifica el usuario, solo emite tokens.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    public AuthResult loginWithUser(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new com.eduaircontrol.mssecurity.domain.exception.NotFoundException("User not found: " + userId));
+        return issueTokens(user, rolesOf(user.getId()), "social-login");
+    }
+
     static String sha256(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
