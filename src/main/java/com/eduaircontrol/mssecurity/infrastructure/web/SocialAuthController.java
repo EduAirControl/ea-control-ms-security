@@ -113,7 +113,7 @@ public class SocialAuthController {
 
         SocialAuthService.SocialResult result = socialAuthService.findOrCreate(
                 "google", sub, email, name, picture);
-        AuthResult tokens = authService.loginWithUser(result.user());
+        AuthResult tokens = authService.loginWithUser(result.user().getId());
 
         // 4. Redirigir al frontend con el token en el hash
         response.sendRedirect(frontendUrl + "/login#access_token=" + tokens.accessToken()
@@ -173,7 +173,7 @@ public class SocialAuthController {
 
         SocialAuthService.SocialResult result = socialAuthService.findOrCreate(
                 "facebook", sub, email, name, picture);
-        AuthResult tokens = authService.loginWithUser(result.user());
+        AuthResult tokens = authService.loginWithUser(result.user().getId());
 
         response.sendRedirect(frontendUrl + "/login#access_token=" + tokens.accessToken()
                 + "&refresh_token=" + tokens.refreshToken());

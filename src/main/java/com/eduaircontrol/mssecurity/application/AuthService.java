@@ -236,7 +236,10 @@ public class AuthService {
     /**
      * Emite tokens para un usuario autenticado via red social (sin password).
      */
-    public AuthResult loginWithUser(User user) {
+    @Transactional
+    public AuthResult loginWithUser(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new com.eduaircontrol.mssecurity.domain.exception.NotFoundException("User not found: " + userId));
         return issueTokens(user, rolesOf(user.getId()), "social-login");
     }
 
