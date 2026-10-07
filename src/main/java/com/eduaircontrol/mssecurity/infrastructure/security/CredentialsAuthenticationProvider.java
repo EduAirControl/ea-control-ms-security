@@ -1,6 +1,5 @@
 package com.eduaircontrol.mssecurity.infrastructure.security;
 
-import com.eduaircontrol.mssecurity.application.port.InstitutionRepository;
 import com.eduaircontrol.mssecurity.application.port.RoleRepository;
 import com.eduaircontrol.mssecurity.application.port.UserRepository;
 import com.eduaircontrol.mssecurity.application.port.UserRoleRepository;
@@ -21,15 +20,14 @@ import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.stereotype.Component;
 
 /**
- * Autentica email + contraseña + {@code companyCode} contra la institución del
- * usuario (ADR-016). Usado por el formulario de login del Authorization Server.
+ * Autentica correo + contraseña contra los usuarios locales. Usado por el
+ * formulario de login del Authorization Server (ADR-017).
  */
 @Component
 @RequiredArgsConstructor
-public class CompanyCodeAuthenticationProvider implements AuthenticationProvider {
+public class CredentialsAuthenticationProvider implements AuthenticationProvider {
 
     private final UserRepository userRepository;
-    private final InstitutionRepository institutionRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -39,20 +37,12 @@ public class CompanyCodeAuthenticationProvider implements AuthenticationProvider
         String email = authentication.getName();
         String password = authentication.getCredentials() == null ? null
                 : authentication.getCredentials().toString();
-        String companyCode = extractCompanyCode(authentication);
 
         User user = userRepository.findByEmail(email)
                 .filter(User::isActive)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
         if (password == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new BadCredentialsException("Invalid credentials");
-        }
-        boolean institutionMatches = companyCode != null && !companyCode.isBlank()
-                && institutionRepository.findById(user.getInstitutionId())
-                        .map(institution -> institution.getCode().equalsIgnoreCase(companyCode.trim()))
-                        .orElse(false);
-        if (!institutionMatches) {
             throw new BadCredentialsException("Invalid credentials");
         }
 
@@ -63,8 +53,8 @@ public class CompanyCodeAuthenticationProvider implements AuthenticationProvider
                 user.getCampusId(), user.getEmail(), user.getPasswordHash(), authorities);
         UsernamePasswordAuthenticationToken result =
                 new UsernamePasswordAuthenticationToken(principal, null, authorities);
-        // Normaliza los detalles a WebAuthenticationDetails estándar: el custom no es
-        // deserializable por el Jackson de Spring Authorization Server (atributos OAuth2).
+        // Normaliza los detalles a WebAuthenticationDetails estándar: es el tipo
+        // que Spring Authorization Server puede serializar en los atributos OAuth2.
         if (authentication.getDetails() instanceof WebAuthenticationDetails details) {
             result.setDetails(new WebAuthenticationDetails(details.getRemoteAddress(), details.getSessionId()));
         }
@@ -74,14 +64,6 @@ public class CompanyCodeAuthenticationProvider implements AuthenticationProvider
     @Override
     public boolean supports(Class<?> authentication) {
         return UsernamePasswordAuthenticationToken.class.isAssignableFrom(authentication);
-    }
-
-    private String extractCompanyCode(Authentication authentication) {
-        Object details = authentication.getDetails();
-        if (details instanceof CompanyCodeAuthenticationDetails companyCodeDetails) {
-            return companyCodeDetails.getCompanyCode();
-        }
-        return null;
     }
 
     private List<String> rolesOf(UUID userId) {

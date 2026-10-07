@@ -50,8 +50,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        return toResponse(authService.login(request.email(), request.password(), request.companyCode(),
-                userAgent(httpRequest)));
+        return toResponse(authService.login(request.email(), request.password(), userAgent(httpRequest)));
     }
 
     @PostMapping("/refresh")

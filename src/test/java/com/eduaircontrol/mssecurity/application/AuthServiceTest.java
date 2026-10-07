@@ -124,7 +124,7 @@ class AuthServiceTest {
         User user = activeUser(passwordEncoder.encode(PASSWORD));
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login("a@b.com", "WrongPass1", "SEN-444", null))
+        assertThatThrownBy(() -> authService.login("a@b.com", "WrongPass1", null))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasFieldOrPropertyWithValue("code", "INVALID_CREDENTIALS");
         assertThat(user.getFailedAttempts()).isEqualTo(1);
@@ -138,7 +138,7 @@ class AuthServiceTest {
         user.setFailedAttempts(4);
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login("a@b.com", "WrongPass1", "SEN-444", null))
+        assertThatThrownBy(() -> authService.login("a@b.com", "WrongPass1", null))
                 .isInstanceOf(UnauthorizedException.class);
         assertThat(user.getFailedAttempts()).isEqualTo(5);
         assertThat(user.getLockedUntil()).isAfter(NOW);
@@ -150,7 +150,7 @@ class AuthServiceTest {
         user.setLockedUntil(NOW.plusSeconds(60));
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login("a@b.com", PASSWORD, "SEN-444", null))
+        assertThatThrownBy(() -> authService.login("a@b.com", PASSWORD, null))
                 .isInstanceOf(AccountLockedException.class);
         verify(userRepository, never()).save(any());
     }
@@ -164,7 +164,7 @@ class AuthServiceTest {
                 .thenReturn(List.of(new com.eduaircontrol.mssecurity.domain.model.UserRole(
                         user.getId(), UUID.randomUUID(), NOW)));
 
-        AuthResult result = authService.login("a@b.com", PASSWORD, "SEN-444", null);
+        AuthResult result = authService.login("a@b.com", PASSWORD, null);
 
         assertThat(user.getFailedAttempts()).isZero();
         assertThat(user.getLockedUntil()).isNull();
@@ -230,14 +230,6 @@ class AuthServiceTest {
         verify(userRepository, never()).save(any());
     }
 
-    @Test
-    void loginRejectsWrongCompanyCode() {
-        User user = activeUser(passwordEncoder.encode(PASSWORD));
-        when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
-
-        assertThatThrownBy(() -> authService.login("a@b.com", PASSWORD, "OTHER-111", null))
-                .isInstanceOf(UnauthorizedException.class);
-    }
 
     private User activeUser(String passwordHash) {
         User user = new User();

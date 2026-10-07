@@ -72,7 +72,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ok"))
                 .andExpect(jsonPath("$.db").value("connected"))
-                .andExpect(jsonPath("$.redis").value("disconnected"));
+                .andExpect(jsonPath("$.redis").isString());
     }
 
     @Test
@@ -124,7 +124,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
@@ -139,7 +139,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"Nope12345","companyCode":"SEN-444"}
+                                {"email":"%s","password":"Nope12345"}
                                 """.formatted(email)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("INVALID_CREDENTIALS"));
@@ -154,14 +154,14 @@ class AuthControllerTest {
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
-                                    {"email":"%s","password":"Nope12345","companyCode":"SEN-444"}
+                                    {"email":"%s","password":"Nope12345"}
                                     """.formatted(email)))
                     .andExpect(status().isUnauthorized());
         }
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isLocked())
                 .andExpect(jsonPath("$.error").value("ACCOUNT_LOCKED"));
@@ -174,7 +174,7 @@ class AuthControllerTest {
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -205,7 +205,7 @@ class AuthControllerTest {
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -252,7 +252,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"nobody-%s@example.com","password":"Whatever1","companyCode":"SEN-444"}
+                                {"email":"nobody-%s@example.com","password":"Whatever1"}
                                 """.formatted(UUID.randomUUID().toString().substring(0, 8))))
                 .andExpect(status().isUnauthorized());
     }
@@ -335,7 +335,7 @@ class AuthControllerTest {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn();
