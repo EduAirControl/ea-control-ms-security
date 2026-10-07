@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -20,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class SocialAuthService {
 
     private final UserIdentityRepository userIdentityRepository;
@@ -33,6 +33,7 @@ public class SocialAuthService {
      * Si el usuario ya existe por email, lo vincula. Si no, lo crea sin
      * contraseña (se asigna institutionId despues del onboarding).
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public SocialResult findOrCreate(String provider, String providerUserId,
                                      String email, String displayName, String avatarUrl) {
         if (email == null || email.isBlank()) {
@@ -51,6 +52,7 @@ public class SocialAuthService {
         var existingUser = userRepository.findByEmail(email);
         if (existingUser.isPresent()) {
             User user = existingUser.get();
+            // No guardar el usuario, solo el vinculo
             UserIdentity identity = new UserIdentity(user.getId(), provider, providerUserId,
                     email, displayName, avatarUrl);
             userIdentityRepository.save(identity);
