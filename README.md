@@ -26,6 +26,12 @@ Servicio de autenticación y autorización de EduAirControl (dominio **seguridad
 | POST | `/api/v1/auth/refresh` | público | rota el refresh token; el anterior queda revocado |
 | POST | `/api/v1/auth/logout` | Bearer | revoca el refresh token y añade el `jti` a la lista negra Redis |
 | GET | `/api/v1/auth/jwks` | público | clave pública RSA (JWKS) para validar access tokens |
+| POST | `/api/v1/auth/forgot-password` | público | genera código de recuperación (204 siempre) |
+| POST | `/api/v1/auth/resend-code` | público | reenvía el código |
+| POST | `/api/v1/auth/verify-code` | público | valida el código (400 si inválido) |
+| POST | `/api/v1/auth/reset-password` | público | consume el código y cambia la contraseña |
+| POST | `/api/v1/auth/change-password` | Bearer | cambio con contraseña actual |
+| DELETE | `/api/v1/auth/account` | Bearer | baja lógica de la cuenta (soft delete) |
 | GET/POST/PUT | `/api/v1/institutions` | SUPER_ADMIN | gestión de instituciones (tenants) |
 
 El access token es un JWT RS256 de 1 h con `sub`, `email`, `username`, `roles`,
@@ -58,5 +64,5 @@ producción se sustituyen por variables de entorno (`SECURITY_RSA_*_KEY_PATH`).
 ## Pruebas
 
 ```bash
-./mvnw verify        # 48 tests: unit + controllers + OAuth2 sobre H2
+./mvnw verify        # 53 tests: unit + controllers + OAuth2 + password flows (H2)
 ```
