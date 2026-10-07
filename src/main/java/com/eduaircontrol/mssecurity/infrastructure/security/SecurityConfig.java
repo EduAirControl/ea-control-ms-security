@@ -85,6 +85,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/verify-code",
                                 "/api/v1/auth/reset-password",
                                 "/api/v1/auth/oauth2/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/auth/oauth2/**").permitAll()
                         .requestMatchers("/api/v1/institutions/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("SUPER_ADMIN")
                         .anyRequest().authenticated()
