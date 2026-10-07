@@ -83,8 +83,10 @@ public class SecurityConfig {
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/resend-code",
                                 "/api/v1/auth/verify-code",
-                                "/api/v1/auth/reset-password").permitAll()
+                                "/api/v1/auth/reset-password",
+                                "/api/v1/auth/oauth2/**").permitAll()
                         .requestMatchers("/api/v1/institutions/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasRole("SUPER_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

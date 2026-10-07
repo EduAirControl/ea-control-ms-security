@@ -233,6 +233,13 @@ public class AuthService {
         }
     }
 
+    /**
+     * Emite tokens para un usuario autenticado via red social (sin password).
+     */
+    public AuthResult loginWithUser(User user) {
+        return issueTokens(user, rolesOf(user.getId()), "social-login");
+    }
+
     static String sha256(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
