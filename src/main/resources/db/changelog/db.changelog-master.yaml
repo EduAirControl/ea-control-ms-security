@@ -25,3 +25,5 @@ databaseChangeLog:
       file: db/changelog/changes/011-create-oauth2-authorization-consent.yaml
   - include:
       file: db/changelog/changes/012-create-password-reset-tokens.yaml
+  - include:
+      file: db/changelog/changes/013-create-user-identity.yaml
