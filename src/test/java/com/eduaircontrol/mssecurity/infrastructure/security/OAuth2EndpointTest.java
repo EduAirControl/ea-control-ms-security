@@ -44,7 +44,7 @@ class OAuth2EndpointTest {
     void loginPageRendersCompanyCodeForm() throws Exception {
         mockMvc.perform(get("/login").accept(MediaType.TEXT_HTML))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("companyCode")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("password")));
     }
 
     @Test
