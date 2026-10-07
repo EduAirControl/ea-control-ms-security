@@ -22,7 +22,6 @@ public class LoginPageController {
                 <body>
                   <h1>Iniciar sesión</h1>
                   <form method="post" action="/login">
-                    <input name="companyCode" placeholder="Código de institución" required>
                     <input name="username" type="email" placeholder="Correo" required>
                     <input name="password" type="password" placeholder="Contraseña" required>
                     <button type="submit">Entrar</button>

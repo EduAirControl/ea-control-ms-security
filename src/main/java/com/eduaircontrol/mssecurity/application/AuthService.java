@@ -91,7 +91,7 @@ public class AuthService {
         return issueTokens(user, List.of(ROLE_USER), userAgent);
     }
 
-    public AuthResult login(String email, String password, String companyCode, String userAgent) {
+    public AuthResult login(String email, String password, String userAgent) {
         User user = userRepository.findByEmail(email)
                 .filter(User::isActive)
                 .orElseThrow(() -> new UnauthorizedException("Incorrect email or password"));
@@ -107,12 +107,6 @@ public class AuthService {
             }
             user.setUpdatedAt(now);
             userRepository.save(user);
-            throw new UnauthorizedException("Incorrect email or password");
-        }
-        if (companyCode == null || companyCode.isBlank()
-                || institutionRepository.findById(user.getInstitutionId())
-                        .map(institution -> !institution.getCode().equalsIgnoreCase(companyCode.trim()))
-                        .orElse(true)) {
             throw new UnauthorizedException("Incorrect email or password");
         }
         if (user.getFailedAttempts() > 0 || user.getLockedUntil() != null) {
