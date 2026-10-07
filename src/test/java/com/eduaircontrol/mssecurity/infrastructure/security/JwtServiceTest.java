@@ -24,7 +24,7 @@ class JwtServiceTest {
         UUID id = UUID.randomUUID();
         JwtService jwt = service(3600);
 
-        String token = jwt.generateAccessToken(id, "a@b.com", "alice", List.of("USER", "ADMIN"));
+        String token = jwt.generateAccessToken(id, "a@b.com", "alice", List.of("USER", "ADMIN"), null, null);
         Claims claims = jwt.parse(token);
 
         assertThat(claims.getSubject()).isEqualTo(id.toString());
@@ -37,7 +37,7 @@ class JwtServiceTest {
     @Test
     void tokenHeaderCarriesKidMatchingJwks() {
         JwtService jwt = service(3600);
-        String token = jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "alice", List.of("USER"));
+        String token = jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "alice", List.of("USER"), null, null);
 
         @SuppressWarnings("unchecked")
         Map<String, Object> key = (Map<String, Object>) ((List<?>) jwt.jwks().get("keys")).get(0);
@@ -51,7 +51,7 @@ class JwtServiceTest {
     @Test
     void expiryIsApproximatelyConfiguredTtl() {
         JwtService jwt = service(120);
-        Claims claims = jwt.parse(jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "a", List.of()));
+        Claims claims = jwt.parse(jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "a", List.of(), null, null));
 
         long seconds = (claims.getExpiration().getTime() - claims.getIssuedAt().getTime()) / 1000;
         assertThat(seconds).isEqualTo(120);
@@ -60,7 +60,7 @@ class JwtServiceTest {
     @Test
     void alreadyExpiredTokenIsRejected() {
         JwtService jwt = service(-10);
-        String token = jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "a", List.of());
+        String token = jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "a", List.of(), null, null);
 
         assertThatThrownBy(() -> jwt.parse(token)).isInstanceOf(JwtException.class);
     }
@@ -68,7 +68,7 @@ class JwtServiceTest {
     @Test
     void tamperedTokenIsRejected() {
         JwtService jwt = service(3600);
-        String token = jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "a", List.of());
+        String token = jwt.generateAccessToken(UUID.randomUUID(), "a@b.com", "a", List.of(), null, null);
         int signatureStart = token.lastIndexOf('.') + 1;
         char original = token.charAt(signatureStart);
         String tampered = token.substring(0, signatureStart)

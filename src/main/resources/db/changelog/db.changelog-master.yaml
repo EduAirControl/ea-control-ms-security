@@ -13,3 +13,7 @@ databaseChangeLog:
       file: db/changelog/changes/005-add-foreign-keys.yaml
   - include:
       file: db/changelog/changes/006-create-indexes.yaml
+  - include:
+      file: db/changelog/changes/007-create-institution.yaml
+  - include:
+      file: db/changelog/changes/008-add-user-institution.yaml

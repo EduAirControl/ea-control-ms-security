@@ -1,5 +1,6 @@
 package com.eduaircontrol.mssecurity.application;
 
+import com.eduaircontrol.mssecurity.application.port.InstitutionRepository;
 import com.eduaircontrol.mssecurity.application.port.RefreshTokenRepository;
 import com.eduaircontrol.mssecurity.application.port.RoleRepository;
 import com.eduaircontrol.mssecurity.application.port.TokenBlacklist;
@@ -9,6 +10,7 @@ import com.eduaircontrol.mssecurity.domain.exception.AccountLockedException;
 import com.eduaircontrol.mssecurity.domain.exception.ConflictException;
 import com.eduaircontrol.mssecurity.domain.exception.UnauthorizedException;
 import com.eduaircontrol.mssecurity.domain.exception.ValidationException;
+import com.eduaircontrol.mssecurity.domain.model.Institution;
 import com.eduaircontrol.mssecurity.domain.model.RefreshToken;
 import com.eduaircontrol.mssecurity.domain.model.Role;
 import com.eduaircontrol.mssecurity.domain.model.User;
@@ -42,6 +44,7 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final InstitutionRepository institutionRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
@@ -57,7 +60,8 @@ public class AuthService {
     private long refreshTtlDays;
 
     @Transactional
-    public AuthResult register(String email, String password, String username, String userAgent) {
+    public AuthResult register(String email, String password, String username, String companyCode,
+            UUID campusId, String userAgent) {
         validateEmail(email);
         validatePassword(password);
         if (username == null || username.isBlank() || username.length() > 100) {
@@ -66,6 +70,7 @@ public class AuthService {
         if (userRepository.existsByEmail(email)) {
             throw new ConflictException("EMAIL_ALREADY_EXISTS", "Email is already registered");
         }
+        Institution institution = resolveInstitution(companyCode);
         Instant now = clock.instant();
         User user = new User();
         user.setEmail(email);
@@ -73,6 +78,8 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setEmailVerified(false);
         user.setFailedAttempts(0);
+        user.setInstitutionId(institution.getId());
+        user.setCampusId(campusId);
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
         user = userRepository.save(user);
@@ -84,7 +91,7 @@ public class AuthService {
         return issueTokens(user, List.of(ROLE_USER), userAgent);
     }
 
-    public AuthResult login(String email, String password, String userAgent) {
+    public AuthResult login(String email, String password, String companyCode, String userAgent) {
         User user = userRepository.findByEmail(email)
                 .filter(User::isActive)
                 .orElseThrow(() -> new UnauthorizedException("Incorrect email or password"));
@@ -100,6 +107,12 @@ public class AuthService {
             }
             user.setUpdatedAt(now);
             userRepository.save(user);
+            throw new UnauthorizedException("Incorrect email or password");
+        }
+        if (companyCode == null || companyCode.isBlank()
+                || institutionRepository.findById(user.getInstitutionId())
+                        .map(institution -> !institution.getCode().equalsIgnoreCase(companyCode.trim()))
+                        .orElse(true)) {
             throw new UnauthorizedException("Incorrect email or password");
         }
         if (user.getFailedAttempts() > 0 || user.getLockedUntil() != null) {
@@ -152,7 +165,8 @@ public class AuthService {
     private AuthResult issueTokens(User user, List<String> roles, String userAgent) {
         Instant now = clock.instant();
         String accessToken = jwtService.generateAccessToken(
-                user.getId(), user.getEmail(), user.getUsername(), roles);
+                user.getId(), user.getEmail(), user.getUsername(), roles,
+                user.getInstitutionId(), user.getCampusId());
         String rawRefresh = UUID.randomUUID().toString();
         RefreshToken token = new RefreshToken();
         token.setUserId(user.getId());
@@ -162,7 +176,16 @@ public class AuthService {
         token.setUserAgent(userAgent);
         refreshTokenRepository.save(token);
         return new AuthResult(accessToken, rawRefresh, jwtService.expiresInSeconds(),
-                user.getId(), user.getEmail(), user.getUsername(), roles);
+                user.getId(), user.getEmail(), user.getUsername(), roles,
+                user.getInstitutionId(), user.getCampusId());
+    }
+
+    private Institution resolveInstitution(String companyCode) {
+        if (companyCode == null || companyCode.isBlank()) {
+            throw new ValidationException("companyCode must not be blank");
+        }
+        return institutionRepository.findByCode(companyCode.trim().toUpperCase())
+                .orElseThrow(() -> new ValidationException("Unknown institution: " + companyCode));
     }
 
     private List<String> rolesOf(UUID userId) {

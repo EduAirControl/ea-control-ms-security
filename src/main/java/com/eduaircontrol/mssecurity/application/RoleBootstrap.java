@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class RoleBootstrap implements ApplicationRunner {
 
     static final List<String> REQUIRED_ROLES = List.of(
-            "ADMIN", "USER", "VIEWER");
+            "SUPER_ADMIN", "ADMIN", "USER", "VIEWER");
 
     private final RoleRepository roleRepository;
 
@@ -40,7 +40,8 @@ public class RoleBootstrap implements ApplicationRunner {
 
     private String defaultDescription(String name) {
         return switch (name) {
-            case "ADMIN" -> "Full access";
+            case "SUPER_ADMIN" -> "Global administrator (manages institutions)";
+            case "ADMIN" -> "Institution administrator (full access)";
             case "USER" -> "Standard user";
             case "VIEWER" -> "Read-only user";
             default -> null;
