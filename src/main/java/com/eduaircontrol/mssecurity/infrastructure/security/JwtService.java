@@ -82,6 +82,18 @@ public class JwtService {
         return ttlSeconds;
     }
 
+    public RSAPublicKey getPublicKey() {
+        return publicKey;
+    }
+
+    public RSAPrivateKey getPrivateKey() {
+        return privateKey;
+    }
+
+    public String getKid() {
+        return kid;
+    }
+
     public Map<String, Object> jwks() {
         Map<String, Object> key = new LinkedHashMap<>();
         key.put("kty", "RSA");

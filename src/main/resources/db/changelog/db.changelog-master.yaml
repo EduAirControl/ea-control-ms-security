@@ -17,3 +17,9 @@ databaseChangeLog:
       file: db/changelog/changes/007-create-institution.yaml
   - include:
       file: db/changelog/changes/008-add-user-institution.yaml
+  - include:
+      file: db/changelog/changes/009-create-oauth2-registered-client.yaml
+  - include:
+      file: db/changelog/changes/010-create-oauth2-authorization.yaml
+  - include:
+      file: db/changelog/changes/011-create-oauth2-authorization-consent.yaml
