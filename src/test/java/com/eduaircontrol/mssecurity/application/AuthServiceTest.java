@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.eduaircontrol.mssecurity.application.port.InstitutionRepository;
 import com.eduaircontrol.mssecurity.application.port.RefreshTokenRepository;
 import com.eduaircontrol.mssecurity.application.port.RoleRepository;
 import com.eduaircontrol.mssecurity.application.port.TokenBlacklist;
@@ -42,9 +43,12 @@ class AuthServiceTest {
     private RoleRepository roleRepository;
     private UserRoleRepository userRoleRepository;
     private RefreshTokenRepository refreshTokenRepository;
+    private InstitutionRepository institutionRepository;
     private PasswordEncoder passwordEncoder;
     private TokenBlacklist tokenBlacklist;
     private AuthService authService;
+
+    private static final UUID INSTITUTION_ID = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -52,12 +56,13 @@ class AuthServiceTest {
         roleRepository = mock(RoleRepository.class);
         userRoleRepository = mock(UserRoleRepository.class);
         refreshTokenRepository = mock(RefreshTokenRepository.class);
+        institutionRepository = mock(InstitutionRepository.class);
         passwordEncoder = new BCryptPasswordEncoder(4);
         tokenBlacklist = mock(TokenBlacklist.class);
         JwtService jwtService = new JwtService("keys/dev-private.pem", "keys/dev-public.pem", 3600);
         authService = new AuthService(userRepository, roleRepository, userRoleRepository,
-                refreshTokenRepository, jwtService, passwordEncoder, Clock.fixed(NOW, ZoneOffset.UTC),
-                tokenBlacklist);
+                refreshTokenRepository, institutionRepository, jwtService, passwordEncoder,
+                Clock.fixed(NOW, ZoneOffset.UTC), tokenBlacklist);
         ReflectionTestUtils.setField(authService, "lockoutMaxAttempts", 5);
         ReflectionTestUtils.setField(authService, "lockoutDurationMinutes", 15);
         ReflectionTestUtils.setField(authService, "refreshTtlDays", 7);
@@ -66,6 +71,16 @@ class AuthServiceTest {
         userRole.setId(UUID.randomUUID());
         userRole.setName("USER");
         when(roleRepository.findByName("USER")).thenReturn(Optional.of(userRole));
+
+        com.eduaircontrol.mssecurity.domain.model.Institution institution =
+                com.eduaircontrol.mssecurity.domain.model.Institution.builder()
+                        .id(INSTITUTION_ID)
+                        .code("SEN-444")
+                        .name("SENA")
+                        .status(com.eduaircontrol.mssecurity.domain.model.InstitutionStatus.ACTIVE)
+                        .build();
+        when(institutionRepository.findByCode("SEN-444")).thenReturn(Optional.of(institution));
+        when(institutionRepository.findById(INSTITUTION_ID)).thenReturn(Optional.of(institution));
     }
 
     @Test
@@ -77,7 +92,7 @@ class AuthServiceTest {
             return u;
         });
 
-        AuthResult result = authService.register("a@b.com", PASSWORD, "alice", "junit");
+        AuthResult result = authService.register("a@b.com", PASSWORD, "alice", "SEN-444", null, "junit");
 
         assertThat(result.roles()).containsExactly("USER");
         assertThat(result.accessToken()).isNotBlank();
@@ -91,7 +106,7 @@ class AuthServiceTest {
     void registerRejectsDuplicateEmail() {
         when(userRepository.existsByEmail("a@b.com")).thenReturn(true);
 
-        assertThatThrownBy(() -> authService.register("a@b.com", PASSWORD, "alice", null))
+        assertThatThrownBy(() -> authService.register("a@b.com", PASSWORD, "alice", "SEN-444", null, null))
                 .isInstanceOf(ConflictException.class)
                 .hasFieldOrPropertyWithValue("code", "EMAIL_ALREADY_EXISTS");
         verify(userRepository, never()).save(any());
@@ -99,7 +114,7 @@ class AuthServiceTest {
 
     @Test
     void registerRejectsWeakPassword() {
-        assertThatThrownBy(() -> authService.register("a@b.com", "weak", "alice", null))
+        assertThatThrownBy(() -> authService.register("a@b.com", "weak", "alice", "SEN-444", null, null))
                 .isInstanceOf(ValidationException.class);
         verify(userRepository, never()).save(any());
     }
@@ -109,7 +124,7 @@ class AuthServiceTest {
         User user = activeUser(passwordEncoder.encode(PASSWORD));
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login("a@b.com", "WrongPass1", null))
+        assertThatThrownBy(() -> authService.login("a@b.com", "WrongPass1", "SEN-444", null))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasFieldOrPropertyWithValue("code", "INVALID_CREDENTIALS");
         assertThat(user.getFailedAttempts()).isEqualTo(1);
@@ -123,7 +138,7 @@ class AuthServiceTest {
         user.setFailedAttempts(4);
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login("a@b.com", "WrongPass1", null))
+        assertThatThrownBy(() -> authService.login("a@b.com", "WrongPass1", "SEN-444", null))
                 .isInstanceOf(UnauthorizedException.class);
         assertThat(user.getFailedAttempts()).isEqualTo(5);
         assertThat(user.getLockedUntil()).isAfter(NOW);
@@ -135,7 +150,7 @@ class AuthServiceTest {
         user.setLockedUntil(NOW.plusSeconds(60));
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login("a@b.com", PASSWORD, null))
+        assertThatThrownBy(() -> authService.login("a@b.com", PASSWORD, "SEN-444", null))
                 .isInstanceOf(AccountLockedException.class);
         verify(userRepository, never()).save(any());
     }
@@ -149,7 +164,7 @@ class AuthServiceTest {
                 .thenReturn(List.of(new com.eduaircontrol.mssecurity.domain.model.UserRole(
                         user.getId(), UUID.randomUUID(), NOW)));
 
-        AuthResult result = authService.login("a@b.com", PASSWORD, null);
+        AuthResult result = authService.login("a@b.com", PASSWORD, "SEN-444", null);
 
         assertThat(user.getFailedAttempts()).isZero();
         assertThat(user.getLockedUntil()).isNull();
@@ -206,11 +221,30 @@ class AuthServiceTest {
         verify(tokenBlacklist).blacklist("jti-1", NOW.plusSeconds(3600));
     }
 
+    @Test
+    void registerRejectsUnknownInstitution() {
+        when(userRepository.existsByEmail("a@b.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.register("a@b.com", PASSWORD, "alice", "UNKNOWN-1", null, null))
+                .isInstanceOf(ValidationException.class);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void loginRejectsWrongCompanyCode() {
+        User user = activeUser(passwordEncoder.encode(PASSWORD));
+        when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.login("a@b.com", PASSWORD, "OTHER-111", null))
+                .isInstanceOf(UnauthorizedException.class);
+    }
+
     private User activeUser(String passwordHash) {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("a@b.com");
         user.setUsername("alice");
+        user.setInstitutionId(INSTITUTION_ID);
         user.setPasswordHash(passwordHash);
         user.setCreatedAt(NOW);
         user.setUpdatedAt(NOW);

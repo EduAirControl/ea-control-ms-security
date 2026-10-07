@@ -51,7 +51,8 @@ public class JwtService {
         this.ttlSeconds = ttlSeconds;
     }
 
-    public String generateAccessToken(java.util.UUID id, String email, String username, List<String> roles) {
+    public String generateAccessToken(java.util.UUID id, String email, String username, List<String> roles,
+            java.util.UUID institutionId, java.util.UUID campusId) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .setSubject(id.toString())
@@ -59,6 +60,8 @@ public class JwtService {
                 .claim("email", email)
                 .claim("username", username)
                 .claim("roles", roles)
+                .claim("institutionId", institutionId == null ? null : institutionId.toString())
+                .claim("campusId", campusId == null ? null : campusId.toString())
                 .claim("permissions", List.of())
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusSeconds(ttlSeconds)))
