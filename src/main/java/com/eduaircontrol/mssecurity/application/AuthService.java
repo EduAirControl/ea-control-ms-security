@@ -162,6 +162,35 @@ public class AuthService {
         }
     }
 
+    @Transactional
+    public void changePassword(UUID userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .filter(User::isActive)
+                .orElseThrow(() -> new UnauthorizedException("Session invalid"));
+        if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new UnauthorizedException("Current password is incorrect");
+        }
+        validatePassword(newPassword);
+        Instant now = clock.instant();
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(now);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteAccount(UUID userId, String password) {
+        User user = userRepository.findById(userId)
+                .filter(User::isActive)
+                .orElseThrow(() -> new UnauthorizedException("Session invalid"));
+        if (password == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new UnauthorizedException("Password is incorrect");
+        }
+        Instant now = clock.instant();
+        user.setDeletedAt(now);
+        user.setUpdatedAt(now);
+        userRepository.save(user);
+    }
+
     private AuthResult issueTokens(User user, List<String> roles, String userAgent) {
         Instant now = clock.instant();
         String accessToken = jwtService.generateAccessToken(
