@@ -32,4 +32,9 @@ public class UserRepositoryAdapter implements UserRepository {
     public User save(User user) {
         return jpaRepository.save(user);
     }
+
+    @Override
+    public java.util.List<User> findAll() {
+        return jpaRepository.findAll();
+    }
 }

@@ -22,4 +22,9 @@ public class UserRoleRepositoryAdapter implements UserRoleRepository {
     public UserRole save(UserRole userRole) {
         return jpaRepository.save(userRole);
     }
+
+    @Override
+    public void delete(UserRole userRole) {
+        jpaRepository.delete(userRole);
+    }
 }
