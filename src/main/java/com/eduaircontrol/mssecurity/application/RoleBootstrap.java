@@ -7,6 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  * solo inserta los que falten. Fuente única de la semilla (ver decisions.md).
  */
 @Component
+@Order(1)
 @RequiredArgsConstructor
 public class RoleBootstrap implements ApplicationRunner {
 
