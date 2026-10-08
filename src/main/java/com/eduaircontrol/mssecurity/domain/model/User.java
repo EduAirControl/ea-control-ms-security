@@ -46,7 +46,7 @@ public class User {
     @Column(name = "locked_until")
     private Instant lockedUntil;
 
-    @Column(name = "institution_id", nullable = false)
+    @Column(name = "institution_id")
     private UUID institutionId;
 
     @Column(name = "campus_id")
