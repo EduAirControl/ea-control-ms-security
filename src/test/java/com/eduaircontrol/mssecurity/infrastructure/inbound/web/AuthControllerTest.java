@@ -300,6 +300,21 @@ class AuthControllerTest {
                 .andExpect(status().isCreated());
     }
 
+    /**
+     * GET sobre un endpoint autenticado que solo acepta POST es 405, no 500.
+     * Sin el manejador especifico caia en el generico de Exception.
+     */
+    @Test
+    void unsupportedHttpMethodReturns405() throws Exception {
+        String superToken = jwtService.generateAccessToken(UUID.randomUUID(), "sa@test.com", "sa",
+                java.util.List.of("SUPER_ADMIN"), null, null);
+
+        mockMvc.perform(get("/api/v1/device-tokens")
+                        .header("Authorization", "Bearer " + superToken))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.error").value("METHOD_NOT_ALLOWED"));
+    }
+
     @Test
     void refreshUnknownTokenReturns401() throws Exception {
         mockMvc.perform(post("/api/v1/auth/refresh")
