@@ -75,11 +75,11 @@ class AuthServiceTest {
         com.eduaircontrol.mssecurity.domain.model.Institution institution =
                 com.eduaircontrol.mssecurity.domain.model.Institution.builder()
                         .id(INSTITUTION_ID)
-                        .code("SEN-444")
+                        .code("SEN-4444")
                         .name("SENA")
                         .status(com.eduaircontrol.mssecurity.domain.model.InstitutionStatus.ACTIVE)
                         .build();
-        when(institutionRepository.findByCode("SEN-444")).thenReturn(Optional.of(institution));
+        when(institutionRepository.findByCode("SEN-4444")).thenReturn(Optional.of(institution));
         when(institutionRepository.findById(INSTITUTION_ID)).thenReturn(Optional.of(institution));
     }
 
@@ -92,7 +92,7 @@ class AuthServiceTest {
             return u;
         });
 
-        AuthResult result = authService.register("a@b.com", PASSWORD, "alice", "SEN-444", null, "junit");
+        AuthResult result = authService.register("a@b.com", PASSWORD, "alice", "SEN-4444", null, "junit");
 
         assertThat(result.roles()).containsExactly("USER");
         assertThat(result.accessToken()).isNotBlank();
@@ -106,7 +106,7 @@ class AuthServiceTest {
     void registerRejectsDuplicateEmail() {
         when(userRepository.existsByEmail("a@b.com")).thenReturn(true);
 
-        assertThatThrownBy(() -> authService.register("a@b.com", PASSWORD, "alice", "SEN-444", null, null))
+        assertThatThrownBy(() -> authService.register("a@b.com", PASSWORD, "alice", "SEN-4444", null, null))
                 .isInstanceOf(ConflictException.class)
                 .hasFieldOrPropertyWithValue("code", "EMAIL_ALREADY_EXISTS");
         verify(userRepository, never()).save(any());
@@ -114,7 +114,7 @@ class AuthServiceTest {
 
     @Test
     void registerRejectsWeakPassword() {
-        assertThatThrownBy(() -> authService.register("a@b.com", "weak", "alice", "SEN-444", null, null))
+        assertThatThrownBy(() -> authService.register("a@b.com", "weak", "alice", "SEN-4444", null, null))
                 .isInstanceOf(ValidationException.class);
         verify(userRepository, never()).save(any());
     }
