@@ -21,6 +21,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -69,6 +70,38 @@ public class JwtService {
                 .signWith(privateKey, SignatureAlgorithm.RS256)
                 .compact();
     }
+
+    /**
+     * Token de ingesta para un dispositivo (ESP32).
+     *
+     * <p>Es un token RS256 normal firmado con la misma clave, de modo que cualquier
+     * servicio puede validarlo contra el JWKS sin codigo nuevo. Lo que lo hace de
+     * dispositivo es el claim {@code roles:["DEVICE"]}: el firmware deja de forjar
+     * {@code X-User-Role: ADMIN} y pasa a autenticarse de verdad.
+     *
+     * @param subject identidad del dispositivo (el {@code sensorId} que lo representa)
+     * @param ttlSeconds duracion; los dispositivos no refrescan, asi que es larga
+     */
+    public String generateDeviceToken(UUID subject, long ttlSeconds) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .setSubject(subject.toString())
+                .setId(UUID.randomUUID().toString())
+                .claim("roles", List.of(DEVICE_ROLE))
+                .claim("permissions", List.of(INGEST_PERMISSION))
+                .claim("tokenType", "device")
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(now.plusSeconds(ttlSeconds)))
+                .setHeaderParam("kid", kid)
+                .signWith(privateKey, SignatureAlgorithm.RS256)
+                .compact();
+    }
+
+    /** Rol que distingue a un token de dispositivo de uno de usuario. */
+    public static final String DEVICE_ROLE = "DEVICE";
+
+    /** Permiso que se concede al token de dispositivo: solo puede enviar medidas. */
+    public static final String INGEST_PERMISSION = "ingest";
 
     public Claims parse(String token) {
         return Jwts.parserBuilder()
