@@ -89,6 +89,10 @@ public class SecurityConfig {
                                 "/api/v1/auth/oauth2/**").permitAll()
                         .requestMatchers("/api/v1/institutions/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("SUPER_ADMIN")
+                        // Emitir la credencial de un dispositivo es tarea del
+                        // operador que lo provisiona, no de un SUPER_ADMIN.
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/device-tokens").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

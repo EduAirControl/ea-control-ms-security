@@ -37,21 +37,21 @@ class InstitutionServiceTest {
 
     @Test
     void createUppercasesCodeAndDefaultsActive() {
-        when(repository.existsByCode("SEN-444")).thenReturn(false);
+        when(repository.existsByCode("SEN-4444")).thenReturn(false);
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Institution created = service.create("sen-444", "SENA", "  education  ");
+        Institution created = service.create("sen-4444", "SENA", "  education  ");
 
-        assertThat(created.getCode()).isEqualTo("SEN-444");
+        assertThat(created.getCode()).isEqualTo("SEN-4444");
         assertThat(created.getStatus()).isEqualTo(InstitutionStatus.ACTIVE);
         assertThat(created.getType()).isEqualTo("education");
     }
 
     @Test
     void createRejectsDuplicatedCode() {
-        when(repository.existsByCode("SEN-444")).thenReturn(true);
+        when(repository.existsByCode("SEN-4444")).thenReturn(true);
 
-        assertThatThrownBy(() -> service.create("SEN-444", "SENA", null))
+        assertThatThrownBy(() -> service.create("SEN-4444", "SENA", null))
                 .isInstanceOf(ConflictException.class)
                 .hasFieldOrPropertyWithValue("code", "INSTITUTION_CODE_EXISTS");
         verify(repository, never()).save(any());
@@ -59,9 +59,9 @@ class InstitutionServiceTest {
 
     @Test
     void createRejectsBlankName() {
-        when(repository.existsByCode("SEN-444")).thenReturn(false);
+        when(repository.existsByCode("SEN-4444")).thenReturn(false);
 
-        assertThatThrownBy(() -> service.create("SEN-444", "  ", null))
+        assertThatThrownBy(() -> service.create("SEN-4444", "  ", null))
                 .isInstanceOf(ValidationException.class);
         verify(repository, never()).save(any());
     }
@@ -77,7 +77,7 @@ class InstitutionServiceTest {
     @Test
     void updateChangesProvidedFields() {
         UUID id = UUID.randomUUID();
-        Institution existing = institution(id, "SEN-444");
+        Institution existing = institution(id, "SEN-4444");
         when(repository.findById(id)).thenReturn(Optional.of(existing));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
