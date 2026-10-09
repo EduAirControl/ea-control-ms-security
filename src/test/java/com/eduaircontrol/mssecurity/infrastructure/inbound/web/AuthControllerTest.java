@@ -54,9 +54,9 @@ class AuthControllerTest {
 
     @BeforeEach
     void seedInstitution() {
-        if (institutionRepository.findByCode("SEN-444").isEmpty()) {
+        if (institutionRepository.findByCode("SEN-4444").isEmpty()) {
             institutionRepository.save(Institution.builder()
-                    .code("SEN-444")
+                    .code("SEN-4444")
                     .name("SENA")
                     .status(InstitutionStatus.ACTIVE)
                     .build());
@@ -80,7 +80,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"register-%s@example.com","password":"%s","username":"new.user","companyCode":"SEN-444"}
+                                {"email":"register-%s@example.com","password":"%s","username":"new.user","companyCode":"SEN-4444"}
                                 """.formatted(UUID.randomUUID().toString().substring(0, 8), PASSWORD)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
@@ -99,7 +99,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","username":"other","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s","username":"other","companyCode":"SEN-4444"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("EMAIL_ALREADY_EXISTS"));
@@ -110,7 +110,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"weak-%s@example.com","password":"weak","username":"w","companyCode":"SEN-444"}
+                                {"email":"weak-%s@example.com","password":"weak","username":"w","companyCode":"SEN-4444"}
                                 """.formatted(UUID.randomUUID().toString().substring(0, 8))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
@@ -262,10 +262,42 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"not-an-email","password":"%s","username":"nobody","companyCode":"SEN-444"}
+                                {"email":"not-an-email","password":"%s","username":"nobody","companyCode":"SEN-4444"}
                                 """.formatted(PASSWORD)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+    }
+
+    /**
+     * El codigo de empresa tiene formato fijo: tres letras, guion y cuatro
+     * digitos (ABC-0000). El backend es donde se fija; los frontends solo
+     * ayudan.
+     */
+    @Test
+    void registerRejectsCompanyCodeWithWrongFormat() throws Exception {
+        for (String bad : new String[] {"SEN-444", "SEN_4444", "SE-4444", "SEN-44444", "123-4444"}) {
+            mockMvc.perform(post("/api/v1/auth/register")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"email":"fmt-%s@example.com","password":"%s","username":"nobody","companyCode":"%s"}
+                                    """.formatted(
+                                    UUID.randomUUID().toString().substring(0, 8), PASSWORD, bad)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+        }
+    }
+
+    /** El codigo se guarda en mayusculas, asi que las minusculas tambien valen. */
+    @Test
+    void registerAcceptsLowercaseCompanyCode() throws Exception {
+        String email = "lower-%s@example.com".formatted(UUID.randomUUID().toString().substring(0, 8));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"%s","username":"lower.user","companyCode":"sen-4444"}
+                                """.formatted(email, PASSWORD)))
+                .andExpect(status().isCreated());
     }
 
     @Test
@@ -324,10 +356,10 @@ class AuthControllerTest {
                         .header("Authorization", "Bearer " + superToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"code":"UNI-100","name":"Universidad"}
+                                {"code":"UNI-1000","name":"Universidad"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.code").value("UNI-100"))
+                .andExpect(jsonPath("$.code").value("UNI-1000"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
     }
 
@@ -346,7 +378,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","username":"%s","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s","username":"%s","companyCode":"SEN-4444"}
                                 """.formatted(email, PASSWORD, email.replace("@", "_").replace(".", "_"))))
                 .andExpect(status().isCreated());
     }
