@@ -48,9 +48,9 @@ class PasswordFlowTest {
 
     @BeforeEach
     void seedInstitution() {
-        if (institutionRepository.findByCode("SEN-444").isEmpty()) {
+        if (institutionRepository.findByCode("SEN-4444").isEmpty()) {
             institutionRepository.save(Institution.builder()
-                    .code("SEN-444").name("SENA").status(InstitutionStatus.ACTIVE).build());
+                    .code("SEN-4444").name("SENA").status(InstitutionStatus.ACTIVE).build());
         }
     }
 
@@ -67,7 +67,7 @@ class PasswordFlowTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","username":"%s","companyCode":"SEN-444"}
+                                {"email":"%s","password":"%s","username":"%s","companyCode":"SEN-4444"}
                                 """.formatted(email, PASSWORD, email.replace("@", "_").replace(".", "_"))))
                 .andExpect(status().isCreated());
         return email;
