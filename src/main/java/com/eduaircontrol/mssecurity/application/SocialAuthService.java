@@ -2,6 +2,7 @@ package com.eduaircontrol.mssecurity.application;
 
 import com.eduaircontrol.mssecurity.domain.model.User;
 import com.eduaircontrol.mssecurity.domain.model.UserIdentity;
+import com.eduaircontrol.mssecurity.application.port.InstitutionRepository;
 import com.eduaircontrol.mssecurity.application.port.UserIdentityRepository;
 import com.eduaircontrol.mssecurity.application.port.UserRepository;
 import com.eduaircontrol.mssecurity.application.port.UserRoleRepository;
@@ -27,6 +28,7 @@ public class SocialAuthService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
+    private final InstitutionRepository institutionRepository;
 
     /**
      * Busca o crea el usuario a partir de los datos del proveedor social.
@@ -59,11 +61,11 @@ public class SocialAuthService {
             return new SocialResult(user, identity, true);
         }
 
-        // 3. Crear usuario nuevo (sin contraseña, sin institucion)
-        // Usar ID deterministico para que reintentos no dupliquen
-        UUID newUserId = UUID.nameUUIDFromBytes(("social:" + provider + ":" + providerUserId).getBytes());
+        // 3. Crear usuario nuevo (sin contraseña, sin institucion).
+        // El ID lo genera la base: preasignarlo con save() hace merge de una fila
+        // inexistente y falla. La unicidad la garantizan uq_users_email/username
+        // y el catch de abajo (race condition).
         User user = new User();
-        user.setId(newUserId);
         user.setEmail(email.toLowerCase().trim());
         user.setUsername(email.split("@")[0] + "_" + provider);
         user.setPasswordHash(null);
@@ -102,12 +104,18 @@ public class SocialAuthService {
     }
 
     /**
-     * Asigna la institucion al usuario social despues del onboarding.
+     * Asigna la institucion al usuario social despues del onboarding, a partir
+     * del companyCode (mismo formato que el registro: ABC-0000).
      */
-    public void assignInstitution(UUID userId, UUID institutionId) {
+    public void assignInstitution(UUID userId, String companyCode) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found: " + userId));
-        user.setInstitutionId(institutionId);
+        if (companyCode == null || companyCode.isBlank()) {
+            throw new ValidationException("companyCode must not be blank");
+        }
+        var institution = institutionRepository.findByCode(companyCode.trim().toUpperCase())
+                .orElseThrow(() -> new ValidationException("Unknown institution: " + companyCode));
+        user.setInstitutionId(institution.getId());
         user.setUpdatedAt(Instant.now());
         userRepository.save(user);
     }
