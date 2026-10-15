@@ -84,7 +84,9 @@ public class SecurityConfig {
                                 "/api/v1/auth/resend-code",
                                 "/api/v1/auth/verify-code",
                                 "/api/v1/auth/reset-password",
-                                "/api/v1/auth/oauth2/**").permitAll()
+                                // El canje del codigo social es publico (el codigo
+                                // es el secreto); el onboarding SI exige token.
+                                "/api/v1/auth/oauth2/social/exchange").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/auth/oauth2/**").permitAll()
                         .requestMatchers("/api/v1/institutions/**").hasRole("SUPER_ADMIN")
