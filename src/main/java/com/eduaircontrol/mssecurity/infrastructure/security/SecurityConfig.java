@@ -68,6 +68,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/health",
+                                // Prometheus raspa desde la red Docker interna; los puertos del
+                                // servicio solo estan en 127.0.0.1, asi que no es publico.
+                                "/actuator/health",
+                                "/actuator/prometheus",
                                 "/login",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
