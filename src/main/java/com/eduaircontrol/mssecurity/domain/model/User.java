@@ -34,7 +34,8 @@ public class User {
     @Column(name = "username", nullable = false, length = 100)
     private String username;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    // Nullable: los usuarios sociales se crean sin contraseña (Liquibase 013).
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
     @Column(name = "email_verified", nullable = false)

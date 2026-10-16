@@ -68,6 +68,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/health",
+                                // Prometheus raspa desde la red Docker interna; los puertos del
+                                // servicio solo estan en 127.0.0.1, asi que no es publico.
+                                "/actuator/health",
+                                "/actuator/prometheus",
                                 "/login",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
@@ -84,7 +88,9 @@ public class SecurityConfig {
                                 "/api/v1/auth/resend-code",
                                 "/api/v1/auth/verify-code",
                                 "/api/v1/auth/reset-password",
-                                "/api/v1/auth/oauth2/**").permitAll()
+                                // El canje del codigo social es publico (el codigo
+                                // es el secreto); el onboarding SI exige token.
+                                "/api/v1/auth/oauth2/social/exchange").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/auth/oauth2/**").permitAll()
                         .requestMatchers("/api/v1/institutions/**").hasRole("SUPER_ADMIN")
