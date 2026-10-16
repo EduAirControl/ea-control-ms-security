@@ -1,6 +1,7 @@
 package com.eduaircontrol.mssecurity.application;
 
 import com.eduaircontrol.mssecurity.application.port.PasswordResetTokenRepository;
+import com.eduaircontrol.mssecurity.application.port.RecoveryCodeMailer;
 import com.eduaircontrol.mssecurity.application.port.UserRepository;
 import com.eduaircontrol.mssecurity.domain.exception.ValidationException;
 import com.eduaircontrol.mssecurity.domain.model.PasswordResetToken;
@@ -17,8 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Recuperación de contraseña por código de un solo uso (forgot / verify / reset /
- * resend). En producción el código se envía por correo; aquí se registra en el log
- * (no hay SMTP configurado en el servicio).
+ * resend). El código se envía por correo vía {@link RecoveryCodeMailer}; si no hay
+ * SMTP configurado el mailer lo registra en el log (desarrollo y tests).
  */
 @Slf4j
 @Service
@@ -31,6 +32,7 @@ public class PasswordResetService {
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RecoveryCodeMailer recoveryCodeMailer;
     private final Clock clock;
 
     @Transactional
@@ -86,8 +88,7 @@ public class PasswordResetService {
                 .createdAt(now)
                 .build();
         tokenRepository.save(token);
-        log.info("Password reset code for {}: {} (dev only — send by email in production)",
-                user.getEmail(), code);
+        recoveryCodeMailer.sendRecoveryCode(user.getEmail(), code);
     }
 
     private void validatePassword(String password) {
