@@ -16,6 +16,7 @@ import com.eduaircontrol.mssecurity.domain.model.Institution;
 import com.eduaircontrol.mssecurity.domain.model.InstitutionStatus;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.InstitutionJpaRepository;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.UserJpaRepository;
+import com.eduaircontrol.mssecurity.infrastructure.security.TestKeys;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +35,10 @@ import org.springframework.test.web.servlet.MvcResult;
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 class SocialAuthControllerTest {
+
+    static {
+        TestKeys.ensureGenerated();
+    }
 
     @Autowired
     private MockMvc mockMvc;

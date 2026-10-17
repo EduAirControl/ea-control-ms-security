@@ -29,8 +29,10 @@ import org.springframework.stereotype.Service;
 /**
  * Emisión y verificación de access tokens JWT con RS256 (ADR-006 / decisions.md
  * del servicio). La clave pública se publica vía JWKS para que el api-gateway y
- * los demás servicios validen sin llamar a este servicio. Las claves dev están
- * en resources/keys; en producción se sustituyen por variables de entorno.
+ * los demás servicios validen sin llamar a este servicio. Las rutas de los PEM
+ * son obligatorias (sin default): en local se generan con
+ * {@code scripts/generate-dev-keys.sh} y en despliegue llegan montadas desde un
+ * secreto (R-002). Ninguna clave se versiona.
  */
 @Service
 public class JwtService {

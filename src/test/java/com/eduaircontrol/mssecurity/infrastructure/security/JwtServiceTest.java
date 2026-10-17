@@ -12,11 +12,12 @@ import org.junit.jupiter.api.Test;
 
 class JwtServiceTest {
 
-    private static final String PRIVATE = "keys/dev-private.pem";
-    private static final String PUBLIC = "keys/dev-public.pem";
+    static {
+        TestKeys.ensureGenerated();
+    }
 
     private JwtService service(long ttl) {
-        return new JwtService(PRIVATE, PUBLIC, ttl);
+        return new JwtService(TestKeys.PRIVATE_KEY_PATH, TestKeys.PUBLIC_KEY_PATH, ttl);
     }
 
     @Test
