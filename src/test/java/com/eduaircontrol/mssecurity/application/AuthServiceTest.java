@@ -22,6 +22,7 @@ import com.eduaircontrol.mssecurity.domain.model.RefreshToken;
 import com.eduaircontrol.mssecurity.domain.model.Role;
 import com.eduaircontrol.mssecurity.domain.model.User;
 import com.eduaircontrol.mssecurity.infrastructure.security.JwtService;
+import com.eduaircontrol.mssecurity.infrastructure.security.TestKeys;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -35,6 +36,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class AuthServiceTest {
+
+    static {
+        TestKeys.ensureGenerated();
+    }
 
     private static final Instant NOW = Instant.parse("2026-10-06T10:00:00Z");
     private static final String PASSWORD = "SecurePass123!";
@@ -59,7 +64,7 @@ class AuthServiceTest {
         institutionRepository = mock(InstitutionRepository.class);
         passwordEncoder = new BCryptPasswordEncoder(4);
         tokenBlacklist = mock(TokenBlacklist.class);
-        JwtService jwtService = new JwtService("keys/dev-private.pem", "keys/dev-public.pem", 3600);
+        JwtService jwtService = new JwtService(TestKeys.PRIVATE_KEY_PATH, TestKeys.PUBLIC_KEY_PATH, 3600);
         authService = new AuthService(userRepository, roleRepository, userRoleRepository,
                 refreshTokenRepository, institutionRepository, jwtService, passwordEncoder,
                 Clock.fixed(NOW, ZoneOffset.UTC), tokenBlacklist);

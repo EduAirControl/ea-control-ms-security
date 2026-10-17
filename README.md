@@ -58,8 +58,12 @@ POSTGRES_USER=security_user POSTGRES_PASSWORD=security_pass ./mvnw spring-boot:r
 docker compose up --build
 ```
 
-Las claves de desarrollo están en `src/main/resources/keys/dev-{private,public}.pem`; en
-producción se sustituyen por variables de entorno (`SECURITY_RSA_*_KEY_PATH`).
+Las claves RSA **no se versionan** (R-002): en local se generan con
+`./scripts/generate-dev-keys.sh` y se apunta a ellas con
+`SECURITY_RSA_PRIVATE_KEY_PATH` / `SECURITY_RSA_PUBLIC_KEY_PATH` (el servicio no
+arranca sin ellas). La contraseña del SUPER_ADMIN de arranque viene de
+`SUPERADMIN_PASSWORD` (también obligatoria). En despliegue ambos llegan montados
+desde secrets (ver `infra/`).
 
 ## Pruebas
 
