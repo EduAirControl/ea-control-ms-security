@@ -19,6 +19,10 @@ import org.springframework.test.web.servlet.MockMvc;
 @ActiveProfiles("test")
 class OAuth2EndpointTest {
 
+    static {
+        TestKeys.ensureGenerated();
+    }
+
     @Autowired
     private MockMvc mockMvc;
 

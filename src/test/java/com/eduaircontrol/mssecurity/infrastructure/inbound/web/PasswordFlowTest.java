@@ -11,6 +11,7 @@ import com.eduaircontrol.mssecurity.domain.model.User;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.InstitutionJpaRepository;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.PasswordResetTokenJpaRepository;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.UserJpaRepository;
+import com.eduaircontrol.mssecurity.infrastructure.security.TestKeys;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -30,6 +31,10 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class PasswordFlowTest {
+
+    static {
+        TestKeys.ensureGenerated();
+    }
 
     private static final String PASSWORD = "SecurePass123!";
     private static final String NEW_PASSWORD = "NewSecure456!";
