@@ -14,6 +14,7 @@ import com.eduaircontrol.mssecurity.domain.model.Institution;
 import com.eduaircontrol.mssecurity.domain.model.InstitutionStatus;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.InstitutionJpaRepository;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.UserJpaRepository;
+import com.eduaircontrol.mssecurity.infrastructure.security.TestKeys;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,10 @@ import org.springframework.test.web.servlet.MvcResult;
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 class AuthControllerTest {
+
+    static {
+        TestKeys.ensureGenerated();
+    }
 
     private static final String PASSWORD = "SecurePass123!";
 
