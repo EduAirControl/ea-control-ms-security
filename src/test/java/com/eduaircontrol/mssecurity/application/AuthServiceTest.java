@@ -64,7 +64,8 @@ class AuthServiceTest {
         institutionRepository = mock(InstitutionRepository.class);
         passwordEncoder = new BCryptPasswordEncoder(4);
         tokenBlacklist = mock(TokenBlacklist.class);
-        JwtService jwtService = new JwtService(TestKeys.PRIVATE_KEY_PATH, TestKeys.PUBLIC_KEY_PATH, 3600);
+        JwtService jwtService = new JwtService(TestKeys.PRIVATE_KEY_PATH, TestKeys.PUBLIC_KEY_PATH, 3600,
+                "http://localhost:8081", "eduaircontrol-api");
         authService = new AuthService(userRepository, roleRepository, userRoleRepository,
                 refreshTokenRepository, institutionRepository, jwtService, passwordEncoder,
                 Clock.fixed(NOW, ZoneOffset.UTC), tokenBlacklist);
