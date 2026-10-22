@@ -12,6 +12,14 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-security_pass}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # R-002: el servicio no arranca sin su par de claves RSA ni sin
+      # SUPERADMIN_PASSWORD. Genere las claves con ./scripts/generate-dev-keys.sh
+      # (queda en src/main/resources/keys/, gitignored) y montadas en /run/keys.
+      SECURITY_RSA_PRIVATE_KEY_PATH: ${SECURITY_RSA_PRIVATE_KEY_PATH:-/run/keys/dev-private.pem}
+      SECURITY_RSA_PUBLIC_KEY_PATH: ${SECURITY_RSA_PUBLIC_KEY_PATH:-/run/keys/dev-public.pem}
+      SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD:?Defina SUPERADMIN_PASSWORD antes de levantar ms-security (R-002)}
+    volumes:
+      - ${SECURITY_KEYS_DIR:-./src/main/resources/keys}:/run/keys:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -17,7 +17,8 @@ class JwtServiceTest {
     }
 
     private JwtService service(long ttl) {
-        return new JwtService(TestKeys.PRIVATE_KEY_PATH, TestKeys.PUBLIC_KEY_PATH, ttl);
+        return new JwtService(TestKeys.PRIVATE_KEY_PATH, TestKeys.PUBLIC_KEY_PATH, ttl,
+                "http://localhost:8081", "eduaircontrol-api");
     }
 
     @Test

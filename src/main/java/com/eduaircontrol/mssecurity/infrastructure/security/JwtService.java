@@ -43,15 +43,21 @@ public class JwtService {
     private final RSAPublicKey publicKey;
     private final String kid;
     private final long ttlSeconds;
+    private final String issuer;
+    private final String audience;
 
     public JwtService(
             @Value("${security.rsa.private-key-path:keys/dev-private.pem}") String privateKeyPath,
             @Value("${security.rsa.public-key-path:keys/dev-public.pem}") String publicKeyPath,
-            @Value("${jwt.access-token-ttl-seconds:3600}") long ttlSeconds) {
+            @Value("${jwt.access-token-ttl-seconds:3600}") long ttlSeconds,
+            @Value("${app.security.issuer:http://localhost:8081}") String issuer,
+            @Value("${app.security.audience:eduaircontrol-api}") String audience) {
         this.privateKey = (RSAPrivateKey) readPrivateKey(privateKeyPath);
         this.publicKey = (RSAPublicKey) readPublicKey(publicKeyPath);
         this.kid = computeKid(publicKey);
         this.ttlSeconds = ttlSeconds;
+        this.issuer = issuer;
+        this.audience = audience;
     }
 
     public String generateAccessToken(java.util.UUID id, String email, String username, List<String> roles,
@@ -66,6 +72,8 @@ public class JwtService {
                 .claim("institutionId", institutionId == null ? null : institutionId.toString())
                 .claim("campusId", campusId == null ? null : campusId.toString())
                 .claim("permissions", List.of())
+                .setIssuer(issuer)
+                .setAudience(audience)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusSeconds(ttlSeconds)))
                 .setHeaderParam("kid", kid)
@@ -92,6 +100,8 @@ public class JwtService {
                 .claim("roles", List.of(DEVICE_ROLE))
                 .claim("permissions", List.of(INGEST_PERMISSION))
                 .claim("tokenType", "device")
+                .setIssuer(issuer)
+                .setAudience(audience)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusSeconds(ttlSeconds)))
                 .setHeaderParam("kid", kid)
