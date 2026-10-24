@@ -32,12 +32,13 @@ public class SocialAuthService {
 
     /**
      * Busca o crea el usuario a partir de los datos del proveedor social.
-     * Si el usuario ya existe por email, lo vincula. Si no, lo crea sin
-     * contraseña (se asigna institutionId despues del onboarding).
+     * Si el usuario ya existe por email, lo vincula <b>solo si el proveedor
+     * verifico el email</b>. Si no, lo crea sin contraseña (se asigna
+     * institutionId despues del onboarding).
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public SocialResult findOrCreate(String provider, String providerUserId,
-                                     String email, String displayName, String avatarUrl) {
+    public SocialResult findOrCreate(String provider, String providerUserId, String email,
+                                     boolean emailVerified, String displayName, String avatarUrl) {
         if (email == null || email.isBlank()) {
             throw new ValidationException("The social provider did not return an email");
         }
@@ -50,9 +51,15 @@ public class SocialAuthService {
             return new SocialResult(user, existingLink.get(), true);
         }
 
-        // 2. Buscar usuario por email (cuenta existente)
+        // 2. Buscar usuario por email (cuenta existente). Solo se vincula si el
+        // proveedor declara el email verificado; si no, se rechaza el login social
+        // (evita tomar una cuenta existente con un email sin confirmar).
         var existingUser = userRepository.findByEmail(email);
         if (existingUser.isPresent()) {
+            if (!emailVerified) {
+                throw new ValidationException(
+                        "The provider did not verify this email; cannot link to an existing account");
+            }
             User user = existingUser.get();
             // No guardar el usuario, solo el vinculo
             UserIdentity identity = new UserIdentity(user.getId(), provider, providerUserId,
@@ -69,7 +76,7 @@ public class SocialAuthService {
         user.setEmail(email.toLowerCase().trim());
         user.setUsername(email.split("@")[0] + "_" + provider);
         user.setPasswordHash(null);
-        user.setEmailVerified(true);
+        user.setEmailVerified(emailVerified);
         user.setFailedAttempts(0);
         user.setInstitutionId(null);
         user.setCreatedAt(Instant.now());

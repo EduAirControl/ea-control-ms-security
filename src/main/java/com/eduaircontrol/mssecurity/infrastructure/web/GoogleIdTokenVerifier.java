@@ -61,6 +61,17 @@ public class GoogleIdTokenVerifier {
                 && (jwt.getAudience() == null || !jwt.getAudience().contains(clientId))) {
             throw new JwtException("Token audience does not match google.client-id");
         }
+        // Un email NO verificado por Google no puede usarse para vincular ni para
+        // autoaprovisionar: es como enlazar una cuenta ajena con un email sin
+        // confirmar. Se rechaza el token entero.
+        if (!isTrue(jwt.getClaim("email_verified"))) {
+            throw new JwtException("Google account email is not verified");
+        }
         return jwt;
+    }
+
+    /** El claim puede venir como booleano o como cadena "true". */
+    private static boolean isTrue(Object value) {
+        return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
     }
 }

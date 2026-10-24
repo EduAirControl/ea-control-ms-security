@@ -4,6 +4,7 @@ import com.eduaircontrol.mssecurity.application.AuthResult;
 import com.eduaircontrol.mssecurity.application.AuthService;
 import com.eduaircontrol.mssecurity.application.SocialAuthService;
 import com.eduaircontrol.mssecurity.application.port.SocialCodeStore;
+import com.eduaircontrol.mssecurity.application.port.SocialStateStore;
 import com.eduaircontrol.mssecurity.domain.exception.UnauthorizedException;
 import com.eduaircontrol.mssecurity.infrastructure.inbound.web.dto.SocialExchangeResponse;
 import com.eduaircontrol.mssecurity.infrastructure.inbound.web.dto.UserSummary;
@@ -18,10 +19,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.HexFormat;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,8 +55,22 @@ public class SocialAuthController {
     private final SocialAuthService socialAuthService;
     private final AuthService authService;
     private final SocialCodeStore socialCodeStore;
+    private final SocialStateStore socialStateStore;
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /** Timeout de las llamadas al proveedor (conexion y peticion). */
+    @Value("${app.social.http-timeout-seconds:10}")
+    private long httpTimeoutSeconds;
+
+    private HttpClient httpClient;
+
+    @PostConstruct
+    void initHttpClient() {
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(httpTimeoutSeconds))
+                .build();
+    }
 
     @Value("${google.client-id:}")
     private String googleClientId;
@@ -82,19 +99,26 @@ public class SocialAuthController {
     @GetMapping("/google")
     public void googleAuth(HttpServletResponse response) throws IOException {
         String redirectUri = getRedirectUri("google");
+        String state = newState("google");
         String params = String.join("&",
                 "client_id=" + googleClientId,
                 "redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8),
                 "response_type=code",
                 "scope=openid%20email%20profile",
                 "access_type=online",
-                "prompt=select_account");
+                "prompt=select_account",
+                "state=" + URLEncoder.encode(state, StandardCharsets.UTF_8));
         response.sendRedirect("https://accounts.google.com/o/oauth2/v2/auth?" + params);
     }
 
     @GetMapping("/google/callback")
     public void googleCallback(@RequestParam("code") String code,
+                               @RequestParam(value = "state", required = false) String state,
                                HttpServletResponse response) throws Exception {
+        if (!validState("google", state)) {
+            response.sendRedirect(frontendUrl + "/login?error=invalid_state");
+            return;
+        }
         // 1. Intercambiar code por tokens
         String redirectUri = getRedirectUri("google");
         String body = "code=" + URLEncoder.encode(code, StandardCharsets.UTF_8)
@@ -103,13 +127,13 @@ public class SocialAuthController {
                 + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
                 + "&grant_type=authorization_code";
 
-        HttpClient client = HttpClient.newHttpClient();
         HttpRequest tokenReq = HttpRequest.newBuilder()
                 .uri(URI.create("https://oauth2.googleapis.com/token"))
                 .header("Content-Type", "application/x-www-form-urlencoded")
+                .timeout(Duration.ofSeconds(httpTimeoutSeconds))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
-        HttpResponse<String> tokenResp = client.send(tokenReq, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> tokenResp = httpClient.send(tokenReq, HttpResponse.BodyHandlers.ofString());
 
         JsonNode tokenData = objectMapper.readTree(tokenResp.body());
         String idToken = tokenData.path("id_token").asText("");
@@ -118,7 +142,7 @@ public class SocialAuthController {
             return;
         }
 
-        // 2. Verificar el ID token (firma JWKS de Google, iss, aud, exp)
+        // 2. Verificar el ID token (firma JWKS de Google, iss, aud, exp, email_verified)
         Jwt payload;
         try {
             payload = googleIdTokenVerifier.verify(idToken);
@@ -127,14 +151,15 @@ public class SocialAuthController {
             return;
         }
 
-        // 3. Crear/vincular usuario y dejar codigo social de un solo uso
+        // 3. Crear/vincular usuario y dejar codigo social de un solo uso.
+        // El email viene verificado: el verifier ya exigio email_verified=true.
         String email = payload.getClaimAsString("email");
         String name = payload.getClaimAsString("name");
         String picture = payload.getClaimAsString("picture");
         String sub = payload.getSubject();
 
         SocialAuthService.SocialResult result = socialAuthService.findOrCreate(
-                "google", sub, email, name, picture);
+                "google", sub, email, true, name, picture);
         redirectToFrontendWithCode(response, result.user().getId());
     }
 
@@ -143,30 +168,37 @@ public class SocialAuthController {
     @GetMapping("/facebook")
     public void facebookAuth(HttpServletResponse response) throws IOException {
         String redirectUri = getRedirectUri("facebook");
+        String state = newState("facebook");
         String params = String.join("&",
                 "client_id=" + facebookAppId,
                 "redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8),
                 "response_type=code",
-                "scope=public_profile%2Cemail");
+                "scope=public_profile%2Cemail",
+                "state=" + URLEncoder.encode(state, StandardCharsets.UTF_8));
         response.sendRedirect("https://www.facebook.com/v18.0/dialog/oauth?" + params);
     }
 
     @GetMapping("/facebook/callback")
     public void facebookCallback(@RequestParam("code") String code,
+                                 @RequestParam(value = "state", required = false) String state,
                                  HttpServletResponse response) throws Exception {
+        if (!validState("facebook", state)) {
+            response.sendRedirect(frontendUrl + "/login?error=invalid_state");
+            return;
+        }
         String redirectUri = getRedirectUri("facebook");
         String body = "code=" + URLEncoder.encode(code, StandardCharsets.UTF_8)
                 + "&client_id=" + URLEncoder.encode(facebookAppId, StandardCharsets.UTF_8)
                 + "&client_secret=" + URLEncoder.encode(facebookAppSecret, StandardCharsets.UTF_8)
                 + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8);
 
-        HttpClient client = HttpClient.newHttpClient();
         HttpRequest tokenReq = HttpRequest.newBuilder()
                 .uri(URI.create("https://graph.facebook.com/v18.0/oauth/access_token"))
                 .header("Content-Type", "application/x-www-form-urlencoded")
+                .timeout(Duration.ofSeconds(httpTimeoutSeconds))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
-        HttpResponse<String> tokenResp = client.send(tokenReq, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> tokenResp = httpClient.send(tokenReq, HttpResponse.BodyHandlers.ofString());
 
         JsonNode tokenData = objectMapper.readTree(tokenResp.body());
         String accessToken = tokenData.path("access_token").asText("");
@@ -182,8 +214,9 @@ public class SocialAuthController {
         if (appSecretProof != null) {
             meUrl += "&appsecret_proof=" + appSecretProof;
         }
-        HttpRequest userReq = HttpRequest.newBuilder().uri(URI.create(meUrl)).GET().build();
-        HttpResponse<String> userResp = client.send(userReq, HttpResponse.BodyHandlers.ofString());
+        HttpRequest userReq = HttpRequest.newBuilder().uri(URI.create(meUrl))
+                .timeout(Duration.ofSeconds(httpTimeoutSeconds)).GET().build();
+        HttpResponse<String> userResp = httpClient.send(userReq, HttpResponse.BodyHandlers.ofString());
         JsonNode payload = objectMapper.readTree(userResp.body());
 
         String email = payload.path("email").asText("");
@@ -191,8 +224,10 @@ public class SocialAuthController {
         String picture = payload.path("picture").path("data").path("url").asText("");
         String sub = payload.path("id").asText("");
 
+        // Facebook solo devuelve el email de cuentas con correo confirmado por la
+        // propia plataforma, por eso se considera verificado.
         SocialAuthService.SocialResult result = socialAuthService.findOrCreate(
-                "facebook", sub, email, name, picture);
+                "facebook", sub, email, true, name, picture);
         redirectToFrontendWithCode(response, result.user().getId());
     }
 
@@ -242,6 +277,19 @@ public class SocialAuthController {
         String code = UUID.randomUUID().toString();
         socialCodeStore.store(code, userId);
         response.sendRedirect(frontendUrl + "/login?social_code=" + code);
+    }
+
+    /** Genera y guarda un state anti-CSRF para el proveedor. */
+    private String newState(String provider) {
+        String state = UUID.randomUUID().toString();
+        socialStateStore.store(state, provider);
+        return state;
+    }
+
+    /** Valida y consume el state; debe existir y ser del proveedor esperado. */
+    private boolean validState(String provider, String state) {
+        String stored = socialStateStore.consume(state);
+        return provider.equals(stored);
     }
 
     private String getRedirectUri(String provider) {
