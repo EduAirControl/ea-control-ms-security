@@ -1,6 +1,7 @@
 package com.eduaircontrol.mssecurity.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -12,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.eduaircontrol.mssecurity.application.AuthService;
 import com.eduaircontrol.mssecurity.application.SocialAuthService;
 import com.eduaircontrol.mssecurity.application.port.SocialCodeStore;
+import com.eduaircontrol.mssecurity.application.port.SocialStateStore;
+import com.eduaircontrol.mssecurity.domain.exception.ValidationException;
 import com.eduaircontrol.mssecurity.domain.model.Institution;
 import com.eduaircontrol.mssecurity.domain.model.InstitutionStatus;
 import com.eduaircontrol.mssecurity.infrastructure.outbound.persistence.InstitutionJpaRepository;
@@ -58,17 +61,29 @@ class SocialAuthControllerTest {
     @MockitoBean
     private SocialCodeStore socialCodeStore;
 
+    @MockitoBean
+    private SocialStateStore socialStateStore;
+
     private final Map<String, UUID> codes = new ConcurrentHashMap<>();
+    private final Map<String, String> states = new ConcurrentHashMap<>();
 
     @BeforeEach
     void setUp() {
         codes.clear();
+        states.clear();
         doAnswer(invocation -> {
             codes.put(invocation.getArgument(0), invocation.getArgument(1));
             return null;
         }).when(socialCodeStore).store(anyString(), any());
         doAnswer(invocation -> codes.remove(invocation.getArgument(0)))
                 .when(socialCodeStore).consume(anyString());
+
+        doAnswer(invocation -> {
+            states.put(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(socialStateStore).store(anyString(), anyString());
+        doAnswer(invocation -> states.remove(invocation.getArgument(0)))
+                .when(socialStateStore).consume(anyString());
 
         if (institutionRepository.findByCode("SEN-4444").isEmpty()) {
             institutionRepository.save(Institution.builder()
@@ -80,7 +95,7 @@ class SocialAuthControllerTest {
     }
 
     private UUID createSocialUser(String email) {
-        return socialAuthService.findOrCreate("google", "sub-" + email, email, "Test User", null)
+        return socialAuthService.findOrCreate("google", "sub-" + email, email, true, "Test User", null)
                 .user().getId();
     }
 
@@ -94,6 +109,30 @@ class SocialAuthControllerTest {
         assertThat(location).startsWith("https://accounts.google.com/o/oauth2/v2/auth");
         assertThat(location).contains(
                 "redirect_uri=http%3A%2F%2Fauth.example.com%2Fapi%2Fv1%2Fauth%2Foauth2%2Fgoogle%2Fcallback");
+        // El flujo incluye un state anti-CSRF.
+        assertThat(location).contains("state=");
+    }
+
+    /** Un callback sin state valido se rechaza y vuelve al frontend con error. */
+    @Test
+    void googleCallbackWithoutStateIsRejected() throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/v1/auth/oauth2/google/callback")
+                        .param("code", "whatever"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+
+        assertThat(result.getResponse().getRedirectedUrl()).contains("error=invalid_state");
+    }
+
+    /** Un email NO verificado no puede vincularse a una cuenta existente. */
+    @Test
+    void unverifiedEmailIsNotLinkedToAnExistingAccount() {
+        createSocialUser("existing@example.com");
+
+        assertThatThrownBy(() -> socialAuthService.findOrCreate(
+                "facebook", "fb-sub", "existing@example.com", false, "Otro", null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("verify");
     }
 
     @Test
