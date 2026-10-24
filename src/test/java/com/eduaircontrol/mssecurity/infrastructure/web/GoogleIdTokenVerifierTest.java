@@ -34,12 +34,18 @@ class GoogleIdTokenVerifierTest {
 
     private String idToken(String issuer, String audience, Date expiration, KeyPair signer)
             throws Exception {
+        return idToken(issuer, audience, expiration, signer, true);
+    }
+
+    private String idToken(String issuer, String audience, Date expiration, KeyPair signer,
+                           boolean emailVerified) throws Exception {
         return Jwts.builder()
                 .setSubject("google-sub-1")
                 .setIssuer(issuer)
                 .setAudience(audience)
                 .claim("email", "user@example.com")
                 .claim("name", "User Example")
+                .claim("email_verified", emailVerified)
                 .setExpiration(expiration)
                 .signWith(signer.getPrivate(), SignatureAlgorithm.RS256)
                 .compact();
@@ -102,5 +108,16 @@ class GoogleIdTokenVerifierTest {
                 new Date(System.currentTimeMillis() + 60_000), attacker);
 
         assertThatThrownBy(() -> verifier.verify(token)).isInstanceOf(JwtException.class);
+    }
+
+    /** Un email no verificado por Google se rechaza aunque firma/iss/aud sean validos. */
+    @Test
+    void rejectsUnverifiedEmail() throws Exception {
+        String token = idToken("https://accounts.google.com", CLIENT_ID,
+                new Date(System.currentTimeMillis() + 60_000), keyPair, false);
+
+        assertThatThrownBy(() -> verifier.verify(token))
+                .isInstanceOf(JwtException.class)
+                .hasMessageContaining("not verified");
     }
 }
