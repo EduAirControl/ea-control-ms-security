@@ -48,6 +48,19 @@ BFF** y guarda los tokens en cookies httpOnly. Página de login en `/login` (con
 - Access token 15 min; refresh 7 días (rotación).
 - Claims del access token: `sub`, `email`, `roles`, `institutionId`, `campusId`, `permissions`.
 
+## Configuration
+
+Runtime configuration is provided through environment variables. Start from the
+template and adapt the values locally:
+
+```bash
+cp .env.example .env   # local only: .env and *.env are gitignored, never commit them
+```
+
+[`.env.example`](./.env.example) lists every variable: server port, PostgreSQL, Redis,
+JWT TTLs, RSA key paths, CORS origins, OAuth2/social login credentials, SUPER_ADMIN
+seed, account-lockout limits, SMTP and observability endpoints.
+
 ## Ejecutar
 
 ```bash

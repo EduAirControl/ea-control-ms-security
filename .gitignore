@@ -10,7 +10,10 @@ target/
 .DS_Store
 
 *.log
+
+# Local environment files (only .env.example is tracked; never commit real values)
 .env
+*.env
 
 # Claves RSA de desarrollo (generadas por scripts/generate-dev-keys.sh; R-002)
 src/main/resources/keys/
