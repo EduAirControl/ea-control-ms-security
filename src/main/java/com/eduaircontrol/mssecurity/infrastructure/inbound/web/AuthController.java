@@ -44,7 +44,7 @@ public class AuthController {
     private final DataSource dataSource;
     private final StringRedisTemplate redis;
 
-    @Value("${app.cookies.secure:false}")
+    @Value("${COOKIE_SECURE:false}")
     private boolean cookieSecure;
 
     @PostMapping("/register")
