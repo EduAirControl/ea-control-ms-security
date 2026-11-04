@@ -2,6 +2,7 @@ package com.eduaircontrol.mssecurity.infrastructure.inbound.web;
 
 import com.eduaircontrol.mssecurity.application.AuthResult;
 import com.eduaircontrol.mssecurity.application.AuthService;
+import com.eduaircontrol.mssecurity.infrastructure.web.AuthCookies;
 import com.eduaircontrol.mssecurity.infrastructure.inbound.web.dto.AuthResponse;
 import com.eduaircontrol.mssecurity.infrastructure.inbound.web.dto.LoginRequest;
 import com.eduaircontrol.mssecurity.infrastructure.inbound.web.dto.LogoutRequest;
@@ -11,15 +12,12 @@ import com.eduaircontrol.mssecurity.infrastructure.inbound.web.dto.ServiceHealth
 import com.eduaircontrol.mssecurity.infrastructure.inbound.web.dto.UserSummary;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import jakarta.validation.Valid;
 import java.sql.Connection;
 import java.util.UUID;
 import javax.sql.DataSource;
 import com.eduaircontrol.mssecurity.domain.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -44,8 +42,7 @@ public class AuthController {
     private final DataSource dataSource;
     private final StringRedisTemplate redis;
 
-    @Value("${COOKIE_SECURE:false}")
-    private boolean cookieSecure;
+    private final AuthCookies authCookies;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
@@ -60,7 +57,7 @@ public class AuthController {
     public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
         AuthResponse response = toResponse(authService.login(request.email(), request.password(), userAgent(httpRequest)));
-        setAuthCookies(httpResponse, response.accessToken(), response.refreshToken(), response.expiresIn());
+        authCookies.set(httpResponse, response.accessToken(), response.refreshToken(), response.expiresIn());
         return response;
     }
 
@@ -74,7 +71,7 @@ public class AuthController {
             throw new UnauthorizedException("REFRESH_TOKEN_INVALID", "Refresh token invalid, expired, or already used");
         }
         AuthResponse response = toResponse(authService.refresh(refreshToken, userAgent(httpRequest)));
-        setAuthCookies(httpResponse, response.accessToken(), response.refreshToken(), response.expiresIn());
+        authCookies.set(httpResponse, response.accessToken(), response.refreshToken(), response.expiresIn());
         return response;
     }
 
@@ -90,7 +87,7 @@ public class AuthController {
         String jti = (String) httpRequest.getAttribute("jwtJti");
         java.time.Instant expiresAt = (java.time.Instant) httpRequest.getAttribute("jwtExp");
         authService.logout(userId, refreshToken, allDevices, jti, expiresAt);
-        clearAuthCookies(httpResponse);
+        authCookies.clear(httpResponse);
         return ResponseEntity.noContent().build();
     }
 
@@ -122,47 +119,6 @@ public class AuthController {
 
     private String userAgent(HttpServletRequest request) {
         return request.getHeader("User-Agent");
-    }
-
-    private void setAuthCookies(HttpServletResponse response, String accessToken, String refreshToken,
-            long accessExpiresIn) {
-        ResponseCookie access = ResponseCookie.from("access_token", accessToken)
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(accessExpiresIn)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, access.toString());
-
-        ResponseCookie refresh = ResponseCookie.from("refresh_token", refreshToken)
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(7 * 24 * 60 * 60)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, refresh.toString());
-    }
-
-    private void clearAuthCookies(HttpServletResponse response) {
-        ResponseCookie access = ResponseCookie.from("access_token", "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, access.toString());
-
-        ResponseCookie refresh = ResponseCookie.from("refresh_token", "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, refresh.toString());
     }
 
     private String readCookie(HttpServletRequest request, String name) {

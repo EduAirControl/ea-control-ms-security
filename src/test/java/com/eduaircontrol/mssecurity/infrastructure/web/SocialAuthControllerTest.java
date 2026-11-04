@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -165,6 +166,20 @@ class SocialAuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"code-1\"}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void exchangeSetsHttpOnlySessionCookies() throws Exception {
+        UUID userId = createSocialUser("social-cookie@example.com");
+        codes.put("code-cookie", userId);
+
+        mockMvc.perform(post("/api/v1/auth/oauth2/social/exchange")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"code-cookie\"}"))
+                .andExpect(status().isOk())
+                .andExpect(cookie().httpOnly("access_token", true))
+                .andExpect(cookie().httpOnly("refresh_token", true))
+                .andExpect(cookie().exists("access_token"));
     }
 
     @Test
