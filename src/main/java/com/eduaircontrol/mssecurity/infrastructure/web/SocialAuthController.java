@@ -56,6 +56,7 @@ public class SocialAuthController {
     private final AuthService authService;
     private final SocialCodeStore socialCodeStore;
     private final SocialStateStore socialStateStore;
+    private final AuthCookies authCookies;
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -238,12 +239,15 @@ public class SocialAuthController {
      * El codigo se quema aqui: solo puede canjearse una vez.
      */
     @PostMapping("/social/exchange")
-    public SocialExchangeResponse exchange(@Valid @RequestBody SocialExchangeRequest request) {
+    public SocialExchangeResponse exchange(@Valid @RequestBody SocialExchangeRequest request,
+            HttpServletResponse httpResponse) {
         UUID userId = socialCodeStore.consume(request.code());
         if (userId == null) {
             throw new UnauthorizedException("Invalid or expired social code");
         }
         AuthResult result = authService.loginWithUser(userId);
+        // Mismas cookies httpOnly que el login por contrasena: la web no lee el body.
+        authCookies.set(httpResponse, result.accessToken(), result.refreshToken(), result.expiresIn());
         return new SocialExchangeResponse(
                 result.accessToken(),
                 result.refreshToken(),
